@@ -28,6 +28,12 @@ jobs:
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '7.3.3'
+          validate-wrappers: false
+
+      - name: Generate gradle wrapper
+        run: gradle -p app wrapper
 
       - name: Build APK
         run: make dist
@@ -46,7 +52,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install build dependencies
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev libvulkan-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev
+          curl -sL -o /tmp/vulkan-headers.tar.gz https://github.com/KhronosGroup/Vulkan-Headers/archive/refs/tags/vulkan-sdk-1.4.357.0.tar.gz
+          tar -xzf /tmp/vulkan-headers.tar.gz -C /tmp
+          sudo mkdir -p /usr/local/include/vulkan
+          sudo cp -r /tmp/Vulkan-Headers-vulkan-sdk-1.4.357.0/include/vulkan/. /usr/local/include/vulkan/
       - name: Build vortek + gladio
         run: make vortek gladio
       - name: Upload shared libraries
