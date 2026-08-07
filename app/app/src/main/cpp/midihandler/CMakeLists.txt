@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(MIDIHandler)
 
-set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../jniLibs/arm64-v8a)
+set(JNILIBS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/libs/arm64-v8a)
 
 add_library(libc++_shared SHARED IMPORTED)
 set_target_properties(libc++_shared PROPERTIES IMPORTED_LOCATION ${JNILIBS_DIR}/libc++_shared.so)

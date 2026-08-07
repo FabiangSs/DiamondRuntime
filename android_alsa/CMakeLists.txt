@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 2.8)
+cmake_minimum_required(VERSION 3.5)
 
 project(AndroidAlsa C)
 message("Building ${PROJECT_NAME}")
