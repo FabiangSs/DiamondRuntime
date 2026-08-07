@@ -34,7 +34,7 @@ clean:
 JOBS := $(shell nproc)
 BUILD_DIR := build
 
-vortek gladio android_alsa: CFLAGS += -O2 -Wl,-rpath=/data/data/com.winlator/files/rootfs/lib
+vortek gladio android_alsa: CFLAGS += -O2 -Wl,-rpath=/data/data/dev.lcehub.emerald/files/rootfs/lib
 vortek gladio android_alsa:
 	@cmake -S $@ -B $@/$(BUILD_DIR)
 	@cmake --build $@/$(BUILD_DIR) -j$(JOBS)

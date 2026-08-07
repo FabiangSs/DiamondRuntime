@@ -6,7 +6,7 @@
 
 #include "arrays.h"
 #include "string_utils.h"
-#include "winlator.h"
+#include "diamond.h"
 
 #define ARRAY_BUFFER_PUT_TYPE(arrayBuffer, type, value) \
     int targetSize = arrayBuffer->size + sizeof(type); \

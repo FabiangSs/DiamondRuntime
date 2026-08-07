@@ -1,12 +1,12 @@
 <p align="center">
-	<img src="logo.png" width="376" height="128" alt="Winlator Logo" />
+	<img src="logo.png" width="376" height="128" alt="DiamondRuntime Logo" />
 </p>
 
-# Winlator
+# DiamondRuntime
 
-Winlator is an Android application that lets you to run Windows (x86_64) applications with Wine and Box86/Box64.<br>
-This repository stores the latest updates for the Winlator app source.<br>
-For more information and releases, please visit the main repository: https://github.com/brunodev85/winlator
+DiamondRuntime is an Android application that lets you to run Windows (x86_64) applications with Wine and Box86/Box64.<br>
+This repository stores the latest updates for the DiamondRuntime app source.<br>
+For more information and releases, please visit the main repository: https://github.com/LCE-Hub/DiamondRuntime
 
 # Credits and Third-party apps
 

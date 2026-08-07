@@ -1,7 +1,7 @@
 #!/bin/bash
 clear
 
-export ROOTFS="/data/data/com.winlator/files/rootfs"
+export ROOTFS="/data/data/dev.lcehub.emerald/files/rootfs"
 export CFLAGS="-O2 -Wl,-rpath=$ROOTFS/lib"
 
 rm -r build

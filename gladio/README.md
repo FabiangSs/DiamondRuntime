@@ -4,7 +4,7 @@
 
 # Gladio
 
-Gladio is a library for Winlator that provides OpenGL support through the GLES host driver.<br>
+Gladio is a library for DiamondRuntime that provides OpenGL support through the GLES host driver.<br>
 This was created with a focus on increasing compatibility with older games that run on OpenGL,<br>
 the compatibility with WineD3D is still quite limited, but some D3D9 games should run.<br>
 This is the client for Gladio and the server performs various functions such as:<br>
