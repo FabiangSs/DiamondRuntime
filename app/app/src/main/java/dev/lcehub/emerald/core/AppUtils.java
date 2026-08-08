@@ -44,8 +44,11 @@ import java.util.TimerTask;
 
 public abstract class AppUtils {
     public static final String DIRECTORY_DOWNLOADS = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).getPath();
-    public static final String INTERNAL_STORAGE = "/data/data/dev.lcehub.emerald/storage";
     private static WeakReference<Toast> globalToastReference = null;
+
+    public static String getInternalStorage(Context context) {
+        return context.getFilesDir().getParent() + "/storage";
+    }
 
     public static class RestartApplicationOptions {
         public int selectedMenuItemId;

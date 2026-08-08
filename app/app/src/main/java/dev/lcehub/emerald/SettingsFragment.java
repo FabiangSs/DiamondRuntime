@@ -177,7 +177,7 @@ public class SettingsFragment extends Fragment {
         final int oldLCIndex = sLanguage.getSelectedItemPosition();
 
         view.findViewById(R.id.BTReinstallSystemFiles).setOnClickListener((v) -> {
-            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_system_files, () -> RootFSInstaller.install((MainActivity)getActivity()));
+            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_system_files, () -> RootFSInstaller.install((AppCompatActivity)getActivity()));
         });
 
         loadGamepadPlayerConfigs(view);

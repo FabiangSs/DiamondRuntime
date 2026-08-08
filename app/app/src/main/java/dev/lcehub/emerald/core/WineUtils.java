@@ -22,6 +22,7 @@ import java.util.Locale;
 public abstract class WineUtils {
     public static void createDosdevicesSymlinks(Container container, boolean addDriveCDRom) {
         File rootDir = container.getRootDir();
+        String internalStorage = rootDir.getParentFile().getParentFile().getPath()+"/storage";
         String dosdevicesPath = (new File(rootDir, ".wine/dosdevices")).getPath();
         File[] files = (new File(dosdevicesPath)).listFiles();
         if (files != null) for (File file : files) if (file.getName().matches("[a-z]:")) file.delete();
@@ -44,7 +45,7 @@ public abstract class WineUtils {
         for (Drive drive : container.drivesIterator()) {
             File linkTarget = new File(drive.path);
             String path = linkTarget.getAbsolutePath();
-            if (!linkTarget.isDirectory() && path.startsWith(AppUtils.INTERNAL_STORAGE)) {
+            if (!linkTarget.isDirectory() && path.startsWith(internalStorage)) {
                 linkTarget.mkdirs();
                 FileUtils.chmod(linkTarget, 0771);
             }

@@ -44,7 +44,11 @@ public abstract class RootFSInstaller {
         }
     }
 
-    public static void install(final MainActivity activity) {
+    public static void install(final AppCompatActivity activity) {
+        install(activity, null);
+    }
+
+    public static void install(final AppCompatActivity activity, final Runnable callback) {
         AppUtils.keepScreenOn(activity);
         RootFS rootFS = RootFS.find(activity);
         final File rootDir = rootFS.getRootDir();
@@ -74,12 +78,18 @@ public abstract class RootFSInstaller {
             else AppUtils.showToast(activity, R.string.unable_to_install_system_files);
 
             dialog.closeOnUiThread();
+            if (callback != null) callback.run();
         });
     }
 
     public static void installIfNeeded(final MainActivity activity) {
+        installIfNeeded((AppCompatActivity)activity, null);
+    }
+
+    public static void installIfNeeded(final AppCompatActivity activity, final Runnable callback) {
         RootFS rootFS = RootFS.find(activity);
-        if (!rootFS.isValid() || rootFS.getVersion() < LATEST_VERSION) install(activity);
+        if (!rootFS.isValid() || rootFS.getVersion() < LATEST_VERSION) install(activity, callback);
+        else if (callback != null) callback.run();
     }
 
     private static void clearOptDir(File optDir) {

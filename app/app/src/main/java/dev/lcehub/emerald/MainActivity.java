@@ -81,10 +81,16 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
             navigationView.setCheckedItem(menuItemId);
             if (!requestAppPermissions()) RootFSInstaller.installIfNeeded(this);
 
-            int containerId = intent.getIntExtra("container_id", 0);
-            String startPath = intent.getStringExtra("start_path");
-            if (containerId > 0 && startPath != null) {
-                showFragment(new ContainerFileManagerFragment(containerId, startPath));
+            int containerSettingsId = intent.getIntExtra("container_settings_id", 0);
+            if (containerSettingsId > 0) {
+                showFragment(new ContainerDetailFragment(containerSettingsId));
+            }
+            else {
+                int containerId = intent.getIntExtra("container_id", 0);
+                String startPath = intent.getStringExtra("start_path");
+                if (containerId > 0 && startPath != null) {
+                    showFragment(new ContainerFileManagerFragment(containerId, startPath));
+                }
             }
         }
     }

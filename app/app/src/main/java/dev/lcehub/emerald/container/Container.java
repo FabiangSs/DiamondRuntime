@@ -1,5 +1,7 @@
 package dev.lcehub.emerald.container;
 
+import android.content.Context;
+
 import dev.lcehub.emerald.box64.Box64Preset;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.EnvVars;
@@ -23,7 +25,10 @@ public class Container {
     public static final String DEFAULT_DXWRAPPER = DXWrappers.DXVK;
     public static final String DEFAULT_WINCOMPONENTS = "direct3d=1,directsound=1,directmusic=1,directshow=0,directplay=0,xaudio=1,vcrun2005=0,vcrun2010=1,wmdecoder=1";
     public static final String FALLBACK_WINCOMPONENTS = "direct3d=0,directsound=0,directmusic=0,directshow=0,directplay=0,xaudio=0,vcrun2005=0,vcrun2010=0,wmdecoder=0";
-    public static final String DEFAULT_DRIVES = "D:"+AppUtils.DIRECTORY_DOWNLOADS +"E:"+AppUtils.INTERNAL_STORAGE;
+
+    public static String getDefaultDrives(Context context) {
+        return "D:"+AppUtils.DIRECTORY_DOWNLOADS+"E:"+AppUtils.getInternalStorage(context);
+    }
     public static final byte STARTUP_SELECTION_NORMAL = 0;
     public static final byte STARTUP_SELECTION_ESSENTIAL = 1;
     public static final byte STARTUP_SELECTION_AGGRESSIVE = 2;
@@ -39,7 +44,7 @@ public class Container {
     private String audioDriverConfig = "";
     private String wincomponents = DEFAULT_WINCOMPONENTS;
     private String audioDriver = DEFAULT_AUDIO_DRIVER;
-    private String drives = DEFAULT_DRIVES;
+    private String drives;
     private String wineVersion = WineInfo.MAIN_WINE_INFO.identifier();
     private byte hudMode = (byte)FrameRating.Mode.DISABLED.ordinal();
     private byte startupSelection = STARTUP_SELECTION_ESSENTIAL;
