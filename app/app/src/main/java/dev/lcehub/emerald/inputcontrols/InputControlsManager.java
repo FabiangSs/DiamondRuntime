@@ -4,11 +4,13 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.os.Environment;
 import android.util.JsonReader;
 
 import androidx.preference.PreferenceManager;
 
+import dev.lcehub.emerald.SettingsFragment;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.FileUtils;
 
@@ -184,8 +186,16 @@ public class InputControlsManager {
     }
 
     public File exportProfile(ControlsProfile profile) {
-        File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-        File destination = new File(downloadsDir, "DiamondRuntime/profiles/"+profile.getName()+".icp");
+        File destination;
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+        String winlatorPath = sp.getString("winlator_path_uri", null);
+        if (winlatorPath != null) {
+            Uri winlatorUri = Uri.parse(winlatorPath);
+            destination = new File(FileUtils.getFilePathFromUri(context, winlatorUri), "profiles/" + profile.getName() + ".icp");
+        }
+        else {
+            destination = new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "profiles/" + profile.getName() + ".icp");
+        }
         FileUtils.copy(ControlsProfile.getProfileFile(context, profile.id), destination);
         MediaScannerConnection.scanFile(context, new String[]{destination.getAbsolutePath()}, null, null);
         return destination.isFile() ? destination : null;
@@ -205,9 +215,8 @@ public class InputControlsManager {
             int profileId = 0;
             String profileName = null;
             float cursorSpeed = Float.NaN;
-            boolean disableMouseInput = false;
+            int themeColor = 0;
             int fieldsRead = 0;
-            final byte numFieldsToBreak = 4;
 
             reader.beginObject();
             while (reader.hasNext()) {
@@ -222,15 +231,15 @@ public class InputControlsManager {
                     fieldsRead++;
                 }
                 else if (name.equals("cursorSpeed")) {
-                    cursorSpeed = (float)reader.nextDouble();
+                    cursorSpeed = (float) reader.nextDouble();
                     fieldsRead++;
                 }
-                else if (name.equals("disableMouseInput")) {
-                    disableMouseInput = reader.nextBoolean();
+                else if (name.equals("themeColor")) {
+                    themeColor = reader.nextInt();
                     fieldsRead++;
                 }
                 else {
-                    if (fieldsRead == numFieldsToBreak) break;
+                    if (fieldsRead == 4) break;
                     reader.skipValue();
                 }
             }
@@ -238,7 +247,7 @@ public class InputControlsManager {
             ControlsProfile profile = new ControlsProfile(context, profileId);
             profile.setName(profileName);
             profile.setCursorSpeed(cursorSpeed);
-            profile.setDisableMouseInput(disableMouseInput);
+            profile.setThemeColor(themeColor);
             return profile;
         }
         catch (IOException e) {

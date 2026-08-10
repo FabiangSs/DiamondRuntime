@@ -1,6 +1,7 @@
 package dev.lcehub.emerald.contentdialog;
 
 import android.app.Activity;
+import android.util.Log;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -44,16 +45,18 @@ public class StorageInfoDialog extends ContentDialog {
             tvCacheSize.setText(StringUtils.formatBytes(cacheSize.get()));
             tvTotalSize.setText(StringUtils.formatBytes(totalSize.get()));
 
-            int progress = (int)(((double)totalSize.get() / internalStorageSize) * 100);
+            int progress = Math.toIntExact((totalSize.get() / internalStorageSize) * 100);
             tvUsedSpace.setText(progress+"%");
             circularProgressIndicator.setProgress(progress, true);
         };
 
         File rootDir = container.getRootDir();
         final File driveCDir = new File(rootDir, ".wine/drive_c");
-        final File containerCacheDir = new File(rootDir, ".cache");
-        final File globalCacheDir = activity.getCacheDir();
+        final File cacheDir = new File(rootDir, ".cache");
         AtomicLong lastTime = new AtomicLong(System.currentTimeMillis());
+
+
+
 
         final Callback<Long> onAddSize = (size) -> {
             totalSize.addAndGet(size);
@@ -70,20 +73,14 @@ public class StorageInfoDialog extends ContentDialog {
             onAddSize.call(size);
         });
 
-        FileUtils.getSizeAsync(containerCacheDir, (size) -> {
-            cacheSize.addAndGet(size);
-            onAddSize.call(size);
-        });
-
-        FileUtils.getSizeAsync(globalCacheDir, (size) -> {
+        FileUtils.getSizeAsync(cacheDir, (size) -> {
             cacheSize.addAndGet(size);
             onAddSize.call(size);
         });
 
         ((TextView)findViewById(R.id.BTCancel)).setText(R.string.clear_cache);
         setOnCancelCallback(() -> {
-            FileUtils.clear(containerCacheDir);
-            FileUtils.clear(globalCacheDir);
+            FileUtils.clear(cacheDir);
 
             container.putExtra("desktopTheme", null);
             container.saveData();

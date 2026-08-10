@@ -1,69 +1,105 @@
 package dev.lcehub.emerald;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
+import android.content.res.TypedArray;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
+import android.widget.RadioButton;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.core.widget.ImageViewCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.PreferenceManager;
 
-import dev.lcehub.emerald.contentdialog.ContentDialog;
+import dev.lcehub.emerald.R;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.Callback;
 import dev.lcehub.emerald.core.FileUtils;
 import dev.lcehub.emerald.core.HttpUtils;
+import dev.lcehub.emerald.inputcontrols.ControlElement;
 import dev.lcehub.emerald.inputcontrols.ControlsProfile;
 import dev.lcehub.emerald.inputcontrols.ExternalController;
 import dev.lcehub.emerald.inputcontrols.InputControlsManager;
+import dev.lcehub.emerald.math.Mathf;
+import dev.lcehub.emerald.contentdialog.ContentDialog;
 import dev.lcehub.emerald.widget.InputControlsView;
-import dev.lcehub.emerald.widget.SeekBar;
-
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Locale;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class InputControlsFragment extends Fragment {
-    private static final String INPUT_CONTROLS_URL = "https://raw.githubusercontent.com/LCE-Hub/DiamondRuntime/main/input_controls/%s";
+    private static final String INPUT_CONTROLS_URL = "https://raw.githubusercontent.com/brunodev85/winlator/main/input_controls/%s";
     private InputControlsManager manager;
     private ControlsProfile currentProfile;
     private Runnable updateLayout;
     private Callback<ControlsProfile> importProfileCallback;
-    private final int selectedProfileId;
+    private int selectedProfileId;
+    private SharedPreferences preferences;
 
-    public InputControlsFragment(int selectedProfileId) {
-        this.selectedProfileId = selectedProfileId;
+    private static final String ARG_SELECTED_PROFILE_ID = "selected_profile_id";
+
+    private boolean isDarkMode;
+
+    // Fragments precisam de um construtor público sem argumentos: o FragmentManager usa
+    // reflection pra recriar fragments (ex: depois que o Android mata o processo em
+    // background e o usuário volta pro app). Sem esse construtor, isso causa o crash
+    // "NoSuchMethodException: InputControlsFragment.<init> []". Os dados agora são
+    // passados via argumentos (Bundle), que sobrevivem normalmente a esse processo.
+    public InputControlsFragment() {
     }
+
+    public static InputControlsFragment newInstance(int selectedProfileId) {
+        InputControlsFragment fragment = new InputControlsFragment();
+        Bundle args = new Bundle();
+        args.putInt(ARG_SELECTED_PROFILE_ID, selectedProfileId);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(false);
         manager = new InputControlsManager(getContext());
+        selectedProfileId = getArguments() != null ? getArguments().getInt(ARG_SELECTED_PROFILE_ID, 0) : 0;
+
+        preferences = PreferenceManager.getDefaultSharedPreferences(getContext());
+        isDarkMode = preferences.getBoolean("dark_mode", false);
     }
 
     @Override
@@ -91,46 +127,43 @@ public class InputControlsFragment extends Fragment {
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.input_controls_fragment, container, false);
         final Context context = getContext();
-        final SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
 
         currentProfile = selectedProfileId > 0 ? manager.getProfile(selectedProfileId) : null;
 
         final Spinner sProfile = view.findViewById(R.id.SProfile);
+
+        sProfile.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+
         loadProfileSpinner(sProfile);
 
-        final SeekBar sbCursorSpeed = view.findViewById(R.id.SBCursorSpeed);
-        sbCursorSpeed.setOnValueChangeListener((seekBar, value) -> {
-            if (currentProfile != null) {
-                currentProfile.setCursorSpeed(value / 100.0f);
-                currentProfile.save();
-            }
-        });
-
-        CheckBox cbDisableMouseInput = view.findViewById(R.id.CBDisableMouseInput);
-        cbDisableMouseInput.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (currentProfile != null) {
-                currentProfile.setDisableMouseInput(isChecked);
-                currentProfile.save();
-            }
-        });
-
         updateLayout = () -> {
-            if (currentProfile != null) {
-                sbCursorSpeed.setValue(currentProfile.getCursorSpeed() * 100);
-                cbDisableMouseInput.setChecked(currentProfile.isDisableMouseInput());
-            }
-            else {
-                sbCursorSpeed.setValue(100);
-                cbDisableMouseInput.setChecked(false);
-            }
             loadExternalControllers(view);
         };
 
         updateLayout.run();
 
-        SeekBar sbOverlayOpacity = view.findViewById(R.id.SBOverlayOpacity);
-        sbOverlayOpacity.setOnValueChangeListener((seekBar, value) -> preferences.edit().putFloat("overlay_opacity", value / 100.0f).apply());
-        sbOverlayOpacity.setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100);
+        final TextView tvUiOpacity = view.findViewById(R.id.TVUiOpacity);
+        SeekBar sbUiOpacity = view.findViewById(R.id.SBOverlayOpacity);
+        sbUiOpacity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvUiOpacity.setText(progress+"%");
+                if (fromUser) {
+                    progress = (int)Mathf.roundTo(progress, 5);
+                    seekBar.setProgress(progress);
+                    preferences.edit().putFloat("overlay_opacity", progress / 100.0f).apply();
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        sbUiOpacity.setProgress((int)(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100));
+
+
 
         view.findViewById(R.id.BTAddProfile).setOnClickListener((v) -> ContentDialog.prompt(context, R.string.profile_name, null, (name) -> {
             currentProfile = manager.createProfile(name);
@@ -173,15 +206,15 @@ public class InputControlsFragment extends Fragment {
         });
 
         view.findViewById(R.id.BTImportProfile).setOnClickListener((v) -> {
-            PopupMenu popupMenu = new PopupMenu(context, v);
+            android.widget.PopupMenu popupMenu = new PopupMenu(context, v);
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) popupMenu.setForceShowIcon(true);
             popupMenu.inflate(R.menu.open_file_popup_menu);
             popupMenu.setOnMenuItemClickListener((menuItem) -> {
                 int itemId = menuItem.getItemId();
-                if (itemId == R.id.menu_item_open_file) {
+                if (itemId == R.id.open_file) {
                     openProfileFile(sProfile);
                 }
-                else if (itemId == R.id.menu_item_download_file) {
+                else if (itemId == R.id.download_file) {
                     downloadProfileList(sProfile);
                 }
                 return true;
@@ -193,7 +226,7 @@ public class InputControlsFragment extends Fragment {
             if (currentProfile != null) {
                 File exportedFile = manager.exportProfile(currentProfile);
                 if (exportedFile != null) {
-                    String path = exportedFile.getPath().substring(exportedFile.getPath().indexOf(Environment.DIRECTORY_DOWNLOADS));
+                    String path = exportedFile.getPath();
                     AppUtils.showToast(context, context.getString(R.string.profile_exported_to)+" "+path);
                 }
             }
@@ -205,8 +238,10 @@ public class InputControlsFragment extends Fragment {
                 Intent intent = new Intent(context, ControlsEditorActivity.class);
                 intent.putExtra("profile_id", currentProfile.id);
                 startActivity(intent);
+                getActivity().overridePendingTransition(R.anim.slide_in_up, R.anim.slide_out_down);  // Custom slide animations
+            } else {
+                AppUtils.showToast(context, R.string.no_profile_selected);
             }
-            else AppUtils.showToast(context, R.string.no_profile_selected);
         });
 
         return view;
@@ -254,13 +289,13 @@ public class InputControlsFragment extends Fragment {
             activity.preloaderDialog.close();
             if (content != null) {
                 final String[] items = content.split("\n");
-                ContentDialog.showSelectionList(activity, R.string.import_profile, items, true, (positions) -> {
+                ContentDialog.showMultipleChoiceList(activity, R.string.import_profile, items, (positions) -> {
                     if (!positions.isEmpty()) {
                         ContentDialog.confirm(activity, R.string.do_you_want_to_download_the_selected_profiles, () -> downloadSelectedProfiles(sProfile, items, positions));
                     }
                 });
             }
-            else AppUtils.showToast(activity, R.string.a_network_error_occurred);
+            else AppUtils.showToast(activity, R.string.unable_to_load_profile_list);
         }));
     }
 
@@ -310,7 +345,7 @@ public class InputControlsFragment extends Fragment {
 
         if (!controllers.isEmpty()) {
             view.findViewById(R.id.TVEmptyText).setVisibility(View.GONE);
-            String bindingsText = context.getString(R.string.bindings).toLowerCase(Locale.ENGLISH);
+            String bindingsText = context.getString(R.string.bindings);
             for (final ExternalController controller : controllers) {
                 View itemView = inflater.inflate(R.layout.external_controller_list_item, container, false);
                 ((TextView)itemView.findViewById(R.id.TVTitle)).setText(controller.getName());
@@ -319,7 +354,7 @@ public class InputControlsFragment extends Fragment {
                 ((TextView)itemView.findViewById(R.id.TVSubtitle)).setText(controllerBindingCount+" "+bindingsText);
 
                 ImageView imageView = itemView.findViewById(R.id.ImageView);
-                int tintColor = AppUtils.getThemeColor(context, controller.isConnected() ? R.attr.colorAccent : R.attr.colorError);
+                int tintColor = controller.isConnected() ? ContextCompat.getColor(context, R.color.colorAccent) : 0xffe57373;
                 ImageViewCompat.setImageTintList(imageView, ColorStateList.valueOf(tintColor));
 
                 if (controllerBindingCount > 0) {
@@ -338,6 +373,7 @@ public class InputControlsFragment extends Fragment {
                         intent.putExtra("profile_id", currentProfile.id);
                         intent.putExtra("controller_id", controller.getId());
                         startActivity(intent);
+                        getActivity().overridePendingTransition(R.anim.slide_in_up, R.anim.slide_out_down);  // Custom slide animations
                     }
                     else AppUtils.showToast(getContext(), R.string.no_profile_selected);
                 });
@@ -347,4 +383,5 @@ public class InputControlsFragment extends Fragment {
         }
         else view.findViewById(R.id.TVEmptyText).setVisibility(View.VISIBLE);
     }
+
 }

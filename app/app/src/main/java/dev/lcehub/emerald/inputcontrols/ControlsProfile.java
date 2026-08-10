@@ -17,11 +17,11 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
-public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot {
+public class ControlsProfile implements Comparable<ControlsProfile> {
     public final int id;
     private String name;
     private float cursorSpeed = 1.0f;
-    private boolean disableMouseInput = false;
+    private int themeColor = 0; // 0 = usa a cor padrão do app (mesma convenção do customColor por elemento)
     private final ArrayList<ControlElement> elements = new ArrayList<>();
     private final ArrayList<ExternalController> controllers = new ArrayList<>();
     private final List<ControlElement> immutableElements = Collections.unmodifiableList(elements);
@@ -30,26 +30,14 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
     private boolean virtualGamepad = false;
     private final Context context;
     private GamepadState gamepadState;
-    private GamepadVibration gamepadVibration;
 
     public ControlsProfile(Context context, int id) {
         this.context = context;
         this.id = id;
     }
 
-    @Override
     public String getName() {
         return name;
-    }
-
-    @Override
-    public short getVendorId() {
-        return 0x0001;
-    }
-
-    @Override
-    public short getProductId() {
-        return 0x0001;
     }
 
     public void setName(String name) {
@@ -64,28 +52,21 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
         this.cursorSpeed = cursorSpeed;
     }
 
-    public boolean isDisableMouseInput() {
-        return disableMouseInput;
+    public int getThemeColor() {
+        return themeColor;
     }
 
-    public void setDisableMouseInput(boolean disableMouseInput) {
-        this.disableMouseInput = disableMouseInput;
+    public void setThemeColor(int themeColor) {
+        this.themeColor = themeColor;
     }
 
     public boolean isVirtualGamepad() {
         return virtualGamepad;
     }
 
-    @Override
     public GamepadState getGamepadState() {
         if (gamepadState == null) gamepadState = new GamepadState();
         return gamepadState;
-    }
-
-    @Override
-    public GamepadVibration getGamepadVibration() {
-        if (gamepadVibration == null) gamepadVibration = new GamepadVibration(context);
-        return gamepadVibration;
     }
 
     public ExternalController addController(String id) {
@@ -108,7 +89,22 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
 
     public ExternalController getController(int deviceId) {
         if (!controllersLoaded) loadControllers();
-        for (ExternalController controller : controllers) if (controller.getDeviceId() == deviceId) return controller;
+        
+        // First try direct deviceId match
+        for (ExternalController controller : controllers) {
+            if (controller.getDeviceId() == deviceId) return controller;
+        }
+        
+        // If no match, try to find by descriptor
+        android.view.InputDevice device = android.view.InputDevice.getDevice(deviceId);
+        if (device != null) {
+            String descriptor = device.getDescriptor();
+            for (ExternalController controller : controllers) {
+                if (controller.getId().equals(descriptor)) {
+                    return controller;
+                }
+            }
+        }
         return null;
     }
 
@@ -135,7 +131,7 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
             data.put("id", id);
             data.put("name", name);
             data.put("cursorSpeed", Float.valueOf(cursorSpeed));
-            if (disableMouseInput) data.put("disableMouseInput", disableMouseInput);
+            if (themeColor != 0) data.put("themeColor", themeColor);
 
             JSONArray elementsJSONArray = new JSONArray();
             if (!elementsLoaded && file.isFile()) {
@@ -231,37 +227,35 @@ public class ControlsProfile implements Comparable<ControlsProfile>, GamepadSlot
 
         try {
             JSONObject profileJSONObject = new JSONObject(FileUtils.readString(file));
+            if (profileJSONObject.has("themeColor")) themeColor = profileJSONObject.getInt("themeColor");
             JSONArray elementsJSONArray = profileJSONObject.getJSONArray("elements");
             for (int i = 0; i < elementsJSONArray.length(); i++) {
                 JSONObject elementJSONObject = elementsJSONArray.getJSONObject(i);
-
-                ControlElement element = null;
-                if (inputControlsView != null) {
-                    element = new ControlElement(inputControlsView);
-                    element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
-                    element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
-                    element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
-                    element.setX((int)(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
-                    element.setY((int)(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
-                    element.setScale((float)elementJSONObject.getDouble("scale"));
-                    element.setText(elementJSONObject.getString("text"));
-                    element.setIconId(elementJSONObject.getInt("iconId"));
-                    if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
-                    if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
-                    if (elementJSONObject.has("mouseMoveMode")) element.setMouseMoveMode(true);
-                    if (elementJSONObject.has("opacity")) element.setOpacity((float)elementJSONObject.getDouble("opacity"));
-                }
+                ControlElement element = new ControlElement(inputControlsView);
+                element.setType(ControlElement.Type.valueOf(elementJSONObject.getString("type")));
+                element.setShape(ControlElement.Shape.valueOf(elementJSONObject.getString("shape")));
+                element.setToggleSwitch(elementJSONObject.getBoolean("toggleSwitch"));
+                element.setX((int)(elementJSONObject.getDouble("x") * inputControlsView.getMaxWidth()));
+                element.setY((int)(elementJSONObject.getDouble("y") * inputControlsView.getMaxHeight()));
+                element.setScale((float)elementJSONObject.getDouble("scale"));
+                element.setText(elementJSONObject.getString("text"));
+                element.setIconId(elementJSONObject.getInt("iconId"));
+                if (elementJSONObject.has("range")) element.setRange(ControlElement.Range.valueOf(elementJSONObject.getString("range")));
+                if (elementJSONObject.has("orientation")) element.setOrientation((byte)elementJSONObject.getInt("orientation"));
+                if (elementJSONObject.has("opacity")) element.setOpacity((float)elementJSONObject.getDouble("opacity"));
+                if (elementJSONObject.has("customColor")) element.setCustomColor(elementJSONObject.getInt("customColor"));
+                if (elementJSONObject.has("mouseMoveMode")) element.setMouseMoveMode(elementJSONObject.getBoolean("mouseMoveMode"));
 
                 boolean hasGamepadBinding = true;
                 JSONArray bindingsJSONArray = elementJSONObject.getJSONArray("bindings");
                 for (int j = 0; j < bindingsJSONArray.length(); j++) {
                     Binding binding = Binding.fromString(bindingsJSONArray.getString(j));
-                    if (element != null) element.setBindingAt(j, Binding.fromString(bindingsJSONArray.getString(j)));
+                    element.setBindingAt(j, Binding.fromString(bindingsJSONArray.getString(j)));
                     if (!binding.isGamepad()) hasGamepadBinding = false;
                 }
 
                 if (!virtualGamepad && hasGamepadBinding) virtualGamepad = true;
-                if (element != null) elements.add(element);
+                elements.add(element);
             }
             elementsLoaded = true;
         }

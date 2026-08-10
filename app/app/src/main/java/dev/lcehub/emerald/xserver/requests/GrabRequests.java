@@ -5,7 +5,7 @@ import static dev.lcehub.emerald.xserver.XClientRequestHandler.RESPONSE_CODE_SUC
 import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
-import dev.lcehub.emerald.core.Bitmask;
+import dev.lcehub.emerald.xserver.Bitmask;
 import dev.lcehub.emerald.xserver.Window;
 import dev.lcehub.emerald.xserver.XClient;
 import dev.lcehub.emerald.xserver.errors.BadWindow;

@@ -2,27 +2,26 @@ package dev.lcehub.emerald.xserver.requests;
 
 import static dev.lcehub.emerald.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
 
-import dev.lcehub.emerald.renderer.FullscreenTransformation;
 import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
-import dev.lcehub.emerald.core.Bitmask;
 import dev.lcehub.emerald.xserver.Drawable;
+import dev.lcehub.emerald.xserver.Bitmask;
+import dev.lcehub.emerald.xserver.WindowAttributes;
+import dev.lcehub.emerald.xserver.errors.BadDrawable;
+import dev.lcehub.emerald.xserver.errors.BadIdChoice;
+import dev.lcehub.emerald.xserver.errors.BadValue;
+import dev.lcehub.emerald.xserver.events.CreateNotify;
+import dev.lcehub.emerald.xserver.events.Event;
 import dev.lcehub.emerald.xserver.Property;
 import dev.lcehub.emerald.xserver.Visual;
 import dev.lcehub.emerald.xserver.Window;
-import dev.lcehub.emerald.xserver.WindowAttributes;
 import dev.lcehub.emerald.xserver.WindowManager;
 import dev.lcehub.emerald.xserver.XClient;
 import dev.lcehub.emerald.xserver.errors.BadAccess;
-import dev.lcehub.emerald.xserver.errors.BadDrawable;
-import dev.lcehub.emerald.xserver.errors.BadIdChoice;
 import dev.lcehub.emerald.xserver.errors.BadMatch;
-import dev.lcehub.emerald.xserver.errors.BadValue;
 import dev.lcehub.emerald.xserver.errors.BadWindow;
 import dev.lcehub.emerald.xserver.errors.XRequestError;
-import dev.lcehub.emerald.xserver.events.CreateNotify;
-import dev.lcehub.emerald.xserver.events.Event;
 import dev.lcehub.emerald.xserver.events.RawEvent;
 
 import java.io.IOException;
@@ -111,12 +110,8 @@ public abstract class WindowRequests {
         client.xServer.windowManager.destroyWindow(inputStream.readInt());
     }
 
-    public static void destroySubWindows(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
-        int windowId = inputStream.readInt();
-        Window window = client.xServer.windowManager.getWindow(windowId);
-        if (window == null) throw new BadWindow(windowId);
-
-        for (Window child : window.getChildren()) client.xServer.windowManager.destroyWindow(child.id);
+    public static void destroySubWindows(XClient client, XInputStream inputStream, XOutputStream outputStream) {
+        client.xServer.windowManager.destroyWindow(inputStream.readInt());
     }
 
     public static void reparentWindow(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
@@ -144,7 +139,17 @@ public abstract class WindowRequests {
         int windowId = inputStream.readInt();
         Window window = client.xServer.windowManager.getWindow(windowId);
         if (window == null) throw new BadWindow(windowId);
-        client.xServer.windowManager.mapSubWindows(window);
+        for (Window child : window.getChildren())
+            mapSubWindows(client, child.id);
+        client.xServer.windowManager.mapWindow(window);
+    }
+
+    private static void mapSubWindows(XClient client, int windowId) throws XRequestError {
+        Window window = client.xServer.windowManager.getWindow(windowId);
+        if (window == null) throw new BadWindow(windowId);
+        for (Window child : window.getChildren())
+            mapSubWindows(client, child.id);
+        client.xServer.windowManager.mapWindow(window);
     }
 
     public static void unmapWindow(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
@@ -253,22 +258,12 @@ public abstract class WindowRequests {
         if (window == null) throw new BadWindow(windowId);
         short rootX = client.xServer.pointer.getClampedX();
         short rootY = client.xServer.pointer.getClampedY();
-        Window child = window.getChildByCoords(rootX, rootY, true);
+        Window child = window.getChildByCoords(rootX, rootY);
         short[] localPoint = window.rootPointToLocal(rootX, rootY);
-
-        if (child != null) {
-            FullscreenTransformation fullscreenTransformation = child.getFullscreenTransformation();
-            if (fullscreenTransformation != null) {
-                short[] transformedPoint = fullscreenTransformation.transformPointerCoords(rootX, rootY);
-                rootX = transformedPoint[0];
-                rootY = transformedPoint[1];
-                localPoint = child.rootPointToLocal(rootX, rootY);
-            }
-        }
 
         try (XStreamLock lock = outputStream.lock()) {
             outputStream.writeByte(RESPONSE_CODE_SUCCESS);
-            outputStream.writeByte((byte)(!client.xServer.isRelativeMouseMovement() ? 1 : 0));
+            outputStream.writeByte((byte)((!client.xServer.isRelativeMouseMovement())  ? 1 : 0));
             outputStream.writeShort(client.getSequenceNumber());
             outputStream.writeInt(0);
             outputStream.writeInt(client.xServer.windowManager.rootWindow.id);

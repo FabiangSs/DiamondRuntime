@@ -1,6 +1,6 @@
 package dev.lcehub.emerald.xserver.events;
 
-import dev.lcehub.emerald.core.Bitmask;
+import dev.lcehub.emerald.xserver.Bitmask;
 import dev.lcehub.emerald.xserver.Window;
 
 public class MotionNotify extends InputDeviceEvent {

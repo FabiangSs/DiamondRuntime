@@ -28,8 +28,9 @@
         </LinearLayout>
 
         <TextView
+            android:id="@+id/TVEnvironmentVariables"
             style="@style/FieldSetLabel"
-            android:background="?attr/colorSecondarySurface"
+            android:background="#ffffff"
             android:text="@string/environment_variables" />
     </FrameLayout>
 </LinearLayout>

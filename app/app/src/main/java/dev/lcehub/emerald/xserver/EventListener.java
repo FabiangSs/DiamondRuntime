@@ -1,6 +1,5 @@
 package dev.lcehub.emerald.xserver;
 
-import dev.lcehub.emerald.core.Bitmask;
 import dev.lcehub.emerald.xserver.events.Event;
 
 import java.io.IOException;

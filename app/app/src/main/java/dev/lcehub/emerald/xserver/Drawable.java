@@ -2,8 +2,6 @@ package dev.lcehub.emerald.xserver;
 
 import android.graphics.Bitmap;
 
-import androidx.annotation.Nullable;
-
 import dev.lcehub.emerald.core.Callback;
 import dev.lcehub.emerald.math.Mathf;
 import dev.lcehub.emerald.renderer.GPUImage;
@@ -16,16 +14,15 @@ public class Drawable extends XResource {
     public final short width;
     public final short height;
     public final Visual visual;
-    private Texture texture = new Texture(this);
+    private Texture texture = new Texture();
     private ByteBuffer data;
-    private boolean useSharedData;
     private Runnable onDrawListener;
-    private boolean offscreenStorage = false;
     private Callback<Drawable> onDestroyListener;
     public final Object renderLock = new Object();
+    private boolean directScanout = false;
 
     static {
-        System.loadLibrary("diamond");
+        System.loadLibrary("winlator");
     }
 
     public Drawable(int id, int width, int height, Visual visual) {
@@ -34,6 +31,9 @@ public class Drawable extends XResource {
         this.height = (short)height;
         this.visual = visual;
         this.data = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.LITTLE_ENDIAN);
+        if (this.data == null) {
+            throw new IllegalStateException("Drawable.data initialized as null!");
+        }
     }
 
     public static Drawable fromBitmap(Bitmap bitmap) {
@@ -42,30 +42,37 @@ public class Drawable extends XResource {
         return drawable;
     }
 
-    public boolean isOffscreenStorage() {
-        return offscreenStorage;
-    }
-
-    public void setOffscreenStorage(boolean offscreenStorage) {
-        this.offscreenStorage = offscreenStorage;
-    }
-
     public Texture getTexture() {
         return texture;
     }
 
     public void setTexture(Texture texture) {
-        if (texture instanceof GPUImage) data = ((GPUImage)texture).getVirtualData();
+        if (texture instanceof GPUImage) {
+            ByteBuffer vd = ((GPUImage)texture).getVirtualData();
+            if (vd != null) data = vd;
+
+        }
         this.texture = texture;
     }
 
-    @Nullable
     public ByteBuffer getData() {
         return data;
     }
 
     public void setData(ByteBuffer data) {
+        if (data == null) {
+            throw new IllegalArgumentException("Attempting to set Drawable.data to null!");
+        }
         this.data = data;
+    }
+
+    
+    public void setDirectScanout(boolean value) {
+        this.directScanout = value;
+    }
+
+    public boolean isDirectScanout() {
+        return directScanout;
     }
 
     private short getStride() {
@@ -89,8 +96,6 @@ public class Drawable extends XResource {
     }
 
     public void drawImage(short srcX, short srcY, short dstX, short dstY, short width, short height, byte depth, ByteBuffer data, short totalWidth, short totalHeight) {
-        if (this.data == null) return;
-
         if (depth == 1) {
             drawBitmap(width, height, data, this.data);
         }
@@ -106,12 +111,12 @@ public class Drawable extends XResource {
         this.data.rewind();
         data.rewind();
 
-        forceUpdate();
+        texture.setNeedsUpdate(true);
+        if (onDrawListener != null) onDrawListener.run();
     }
 
     public ByteBuffer getImage(short x, short y, short width, short height) {
         ByteBuffer dstData = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.LITTLE_ENDIAN);
-        if (this.data == null) return dstData;
 
         x = (short)Mathf.clamp(x, 0, this.width-1);
         y = (short)Mathf.clamp(y, 0, this.height-1);
@@ -130,8 +135,6 @@ public class Drawable extends XResource {
     }
 
     public void copyArea(short srcX, short srcY, short dstX, short dstY, short width, short height, Drawable drawable, GraphicsContext.Function gcFunction) {
-        if (this.data == null || drawable.data == null) return;
-
         dstX = (short)Mathf.clamp(dstX, 0, this.width-1);
         dstY = (short)Mathf.clamp(dstY, 0, this.height-1);
         if ((dstX + width) > this.width) width = (short)(this.width - dstX);
@@ -145,7 +148,8 @@ public class Drawable extends XResource {
         this.data.rewind();
         drawable.data.rewind();
 
-        forceUpdate();
+        texture.setNeedsUpdate(true);
+        if (onDrawListener != null) onDrawListener.run();
     }
 
     public void fillColor(int color) {
@@ -153,7 +157,6 @@ public class Drawable extends XResource {
     }
 
     public void fillRect(int x, int y, int width, int height, int color) {
-        if (this.data == null) return;
         x = (short)Mathf.clamp(x, 0, this.width-1);
         y = (short)Mathf.clamp(y, 0, this.height-1);
         if ((x + width) > this.width) width = (short)((this.width - x));
@@ -161,7 +164,9 @@ public class Drawable extends XResource {
 
         fillRect((short)x, (short)y, (short)width, (short)height, color, this.getStride(), this.data);
         this.data.rewind();
-        forceUpdate();
+
+        texture.setNeedsUpdate(true);
+        if (onDrawListener != null) onDrawListener.run();
     }
 
     public void drawLines(int color, int lineWidth, short... points) {
@@ -171,7 +176,6 @@ public class Drawable extends XResource {
     }
 
     public void drawLine(int x0, int y0, int x1, int y1, int color, int lineWidth) {
-        if (this.data == null) return;
         x0 = Mathf.clamp(x0, 0, width-lineWidth);
         y0 = Mathf.clamp(y0, 0, height-lineWidth);
         x1 = Mathf.clamp(x1, 0, width-lineWidth);
@@ -180,30 +184,17 @@ public class Drawable extends XResource {
         drawLine((short)x0, (short)y0, (short)x1, (short)y1, color, (short)lineWidth, this.getStride(), this.data);
 
         this.data.rewind();
-        forceUpdate();
+
+        texture.setNeedsUpdate(true);
+        if (onDrawListener != null) onDrawListener.run();
     }
 
     public void drawAlphaMaskedBitmap(byte foreRed, byte foreGreen, byte foreBlue, byte backRed, byte backGreen, byte backBlue, Drawable srcDrawable, Drawable maskDrawable) {
-        if (this.data == null || srcDrawable.data == null || maskDrawable.data == null) return;
         drawAlphaMaskedBitmap(foreRed, foreGreen, foreBlue, backRed, backGreen, backBlue, srcDrawable.data, maskDrawable.data, this.data);
         this.data.rewind();
 
-        forceUpdate();
-    }
-
-    public void forceUpdate() {
-        if (!offscreenStorage) {
-            texture.setNeedsUpdate(true);
-            if (onDrawListener != null) onDrawListener.run();
-        }
-    }
-
-    public boolean isUseSharedData() {
-        return useSharedData;
-    }
-
-    public void setUseSharedData(boolean useSharedData) {
-        this.useSharedData = useSharedData;
+        texture.setNeedsUpdate(true);
+        if (onDrawListener != null) onDrawListener.run();
     }
 
     private static native void drawBitmap(short width, short height, ByteBuffer srcData, ByteBuffer dstData);
@@ -219,4 +210,8 @@ public class Drawable extends XResource {
     private static native void drawLine(short x0, short y0, short x1, short y1, int color, short lineWidth, short stride, ByteBuffer data);
 
     private static native void fromBitmap(Bitmap bitmap, ByteBuffer data);
+public java.nio.ByteBuffer getBuffer() {
+        return this.data;
 }
+}
+

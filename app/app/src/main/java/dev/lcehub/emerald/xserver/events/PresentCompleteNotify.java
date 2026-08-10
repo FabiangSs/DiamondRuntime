@@ -8,7 +8,6 @@ import dev.lcehub.emerald.xserver.extensions.PresentExtension;
 import java.io.IOException;
 
 public class PresentCompleteNotify extends Event {
-    private final PresentExtension presentExtension;
     private final int eventId;
     private final Window window;
     private final int serial;
@@ -17,9 +16,8 @@ public class PresentCompleteNotify extends Event {
     private final long ust;
     private final long msc;
 
-    public PresentCompleteNotify(PresentExtension presentExtension, int eventId, Window window, int serial, PresentExtension.Kind kind, PresentExtension.Mode mode, long ust, long msc) {
+    public PresentCompleteNotify(int eventId, Window window, int serial, PresentExtension.Kind kind, PresentExtension.Mode mode, long ust, long msc) {
         super(35);
-        this.presentExtension = presentExtension;
         this.eventId = eventId;
         this.window = window;
         this.serial = serial;
@@ -33,7 +31,7 @@ public class PresentCompleteNotify extends Event {
     public void send(short sequenceNumber, XOutputStream outputStream) throws IOException {
         try (XStreamLock lock = outputStream.lock()) {
             outputStream.writeByte(code);
-            outputStream.writeByte(presentExtension.getMajorOpcode());
+            outputStream.writeByte(PresentExtension.MAJOR_OPCODE);
             outputStream.writeShort(sequenceNumber);
             outputStream.writeInt(2);
             outputStream.writeShort(getEventType());

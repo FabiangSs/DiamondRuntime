@@ -1,5 +1,7 @@
 package dev.lcehub.emerald.xserver.requests;
 
+import static dev.lcehub.emerald.xserver.XClientRequestHandler.RESPONSE_CODE_SUCCESS;
+
 import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
@@ -51,18 +53,21 @@ public abstract class CursorRequests {
         client.xServer.cursorManager.freeCursor(inputStream.readInt());
     }
 
-    public static void getPointerMapping(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
+    public static void getPointerMaping(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
         try (XStreamLock lock = outputStream.lock()) {
-            final byte[] buttonsMap = {1, 2, 3};
-            byte length = (byte)buttonsMap.length;
+            byte[] buttonsMap = {1, 2, 3};
+            byte n = (byte) buttonsMap.length;
+            int padLen = -n & 3;
 
-            outputStream.writeByte((byte) 1);
-            outputStream.writeByte(length);
+            outputStream.writeByte(RESPONSE_CODE_SUCCESS);
+            outputStream.writeByte(n);
             outputStream.writeShort(client.getSequenceNumber());
-            outputStream.writeInt((length + 3) / 4);
+            outputStream.writeInt((n + padLen) / 4);
             outputStream.writePad(24);
-            outputStream.write(buttonsMap);
-            outputStream.writePad(-length & 3);
+
+            for (byte b: buttonsMap)
+                outputStream.writeByte(b);
+            outputStream.writePad(padLen);
         }
     }
 }

@@ -1,6 +1,6 @@
 package dev.lcehub.emerald.xserver;
 
-import dev.lcehub.emerald.xconnector.ConnectedClient;
+import dev.lcehub.emerald.xconnector.Client;
 import dev.lcehub.emerald.xconnector.ConnectionHandler;
 
 public class XClientConnectionHandler implements ConnectionHandler {
@@ -11,15 +11,13 @@ public class XClientConnectionHandler implements ConnectionHandler {
     }
 
     @Override
-    public ConnectedClient newConnectedClient(long clientPtr, int fd) {
-        return new XClient(clientPtr, fd, xServer);
+    public void handleNewConnection(Client client) {
+        client.createIOStreams();
+        client.setTag(new XClient(xServer, client.getInputStream(), client.getOutputStream()));
     }
 
     @Override
-    public void handleNewConnection(ConnectedClient client) {}
-
-    @Override
-    public void handleConnectionShutdown(ConnectedClient client) {
-        ((XClient)client).freeResources();
+    public void handleConnectionShutdown(Client client) {
+        ((XClient)client.getTag()).freeResources();
     }
 }

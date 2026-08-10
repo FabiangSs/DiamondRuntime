@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.PointF;
+import android.net.Uri;
 import android.os.Environment;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
@@ -14,22 +15,16 @@ import android.view.View;
 import androidx.annotation.Nullable;
 import androidx.preference.PreferenceManager;
 
-import dev.lcehub.emerald.MainActivity;
 import dev.lcehub.emerald.R;
-import dev.lcehub.emerald.core.AppUtils;
+import dev.lcehub.emerald.SettingsFragment;
+import dev.lcehub.emerald.contentdialog.DebugDialog;
 import dev.lcehub.emerald.core.FileUtils;
-import dev.lcehub.emerald.core.StreamUtils;
 import dev.lcehub.emerald.core.UnitUtils;
 import dev.lcehub.emerald.math.Mathf;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedWriter;
 import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Date;
 
 public class LogView extends View {
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -41,10 +36,10 @@ public class LogView extends View {
     private final PointF scrollPosition = new PointF();
     private final PointF scrollSize = new PointF();
     private boolean isActionDown = false;
+    private static String fileName;
     private boolean scrollingHorizontally = false;
     private boolean scrollingVertically = false;
     private final Object lock = new Object();
-    private final PrintStream printStream;
 
     public LogView(Context context) {
         this(context, null);
@@ -60,23 +55,6 @@ public class LogView extends View {
 
     public LogView(Context context, @Nullable AttributeSet attrs, int defStyleAttr, int defStyleRes) {
         super(context, attrs, defStyleAttr, defStyleRes);
-
-        SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(context);
-        String logPath = preferences.getString("log_file", getLogFile().getPath());
-        boolean saveToFile = preferences.getBoolean("save_logs_to_file", false);
-
-        File logFile = new File(logPath);
-        FileUtils.delete(logFile);
-
-        if (saveToFile) {
-            PrintStream printStream = null;
-            try {
-                printStream = new PrintStream(new BufferedOutputStream(new FileOutputStream(logFile), StreamUtils.BUFFER_SIZE));
-            }
-            catch (IOException e) {}
-            this.printStream = printStream;
-        }
-        else printStream = null;
     }
 
     @Override
@@ -92,14 +70,13 @@ public class LogView extends View {
         int height = getHeight();
 
         if (width == 0 || height == 0) return;
-
+        
         synchronized (lock) {
             paint.setStyle(Paint.Style.FILL);
-            Context context = getContext();
 
             if (lines.isEmpty()) {
                 paint.setTextSize(UnitUtils.dpToPx(20));
-                paint.setColor(AppUtils.getThemeColor(context, R.attr.colorSecondaryText));
+                paint.setColor(0xffbdbdbd);
                 String text = getContext().getString(R.string.no_items_to_display);
                 float centerX = (width - paint.measureText(text)) * 0.5f;
                 float centerY = (height - paint.getFontSpacing()) * 0.5f - paint.ascent();
@@ -111,25 +88,23 @@ public class LogView extends View {
             float textHeight = paint.getFontSpacing();
 
             float rowY = -scrollPosition.y;
-            int colorPrimarySurface = AppUtils.getThemeColor(context, R.attr.colorPrimarySurface);
-            int colorSecondarySurface = AppUtils.getThemeColor(context, R.attr.colorSecondarySurface);
-            int colorPrimaryText = AppUtils.getThemeColor(context, R.attr.colorPrimaryText);
-
+            
+            
             for (int i = 0, count = lines.size(); i < count; i++) {
                 if ((rowY + rowHeight) < 0 || rowY >= height) {
                     rowY += rowHeight;
                     continue;
                 }
 
-                paint.setColor((i % 2) != 0 ? colorPrimarySurface : colorSecondarySurface);
+                paint.setColor((i % 2) != 0 ? 0xffe1f5fe : 0xffffffff);
                 canvas.drawRect(-scrollPosition.x, rowY, width, rowY + rowHeight, paint);
 
-                paint.setColor(colorPrimaryText);
+                paint.setColor(0xff212121);
                 float centerY = (rowY - paint.ascent()) + (rowHeight - textHeight) * 0.5f;
                 canvas.drawText(lines.get(i), -scrollPosition.x, centerY, paint);
                 rowY += rowHeight;
             }
-
+             
             drawScrollThumbs(canvas);
         }
     }
@@ -205,44 +180,35 @@ public class LogView extends View {
 
     public void append(String line) {
         synchronized (lock) {
-            String content = line.replace("\n", "");
-            if (content.isEmpty()) return;
-            String logLine = "["+DateFormat.format("HH:mm:ss", System.currentTimeMillis())+"]  "+content;
-            lines.add(logLine);
-
-            if (printStream != null) {
-                printStream.append(logLine+"\n");
-                printStream.flush();
-            }
+            lines.add("["+DateFormat.format("HH:mm:ss", System.currentTimeMillis())+"]  "+line.replace("\n", ""));
             computeScrollSize();
         }
-        postInvalidate();
-
-        if (MainActivity.DEBUG_MODE) System.out.println(line);
     }
 
-    public static File getLogFile() {
-        File parent = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), "DiamondRuntime");
-        if (!parent.isDirectory()) parent.mkdirs();
-        return new File(parent, "logs.txt");
+    public static void setFilename(String file) {
+        fileName = file.substring(0, file.lastIndexOf("."));
     }
 
-    public void exportToFile() {
-        final File logFile = getLogFile();
-        String logPath = logFile.getPath();
-        if (logFile.isFile()) logFile.delete();
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(logFile))) {
-            synchronized (lock) {
-                for (String line : lines) writer.write(line+"\n");
-            }
+    public static File getLogFile(Context context) {
+        SharedPreferences sp = PreferenceManager.getDefaultSharedPreferences(context);
+        String winlatorPath = sp.getString("winlator_path_uri", null);
+        File logsDir;
 
-            String path = logPath.substring(logPath.indexOf(Environment.DIRECTORY_DOCUMENTS));
-            Context context = getContext();
-            AppUtils.showToast(context, context.getString(R.string.logs_exported_to)+" "+path);
+        if (winlatorPath != null) {
+            Uri winlatorUri = Uri.parse(winlatorPath);
+            logsDir = new File(FileUtils.getFilePathFromUri(context, winlatorUri), "logs");
         }
-        catch (IOException e) {}
-    }
+        else {
+            logsDir = new File(SettingsFragment.DEFAULT_WINLATOR_PATH, "logs");
+        }
 
+        if (!logsDir.exists())
+            logsDir.mkdirs();
+
+        String logFile = fileName.replaceAll("\\s", "_").toLowerCase() + "_" + DateFormat.format("yyyy-MM-dd_HH-mm-ss", new Date()) + ".txt";
+        return new File(logsDir, logFile);
+    }
+    
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         switch (event.getAction()) {
@@ -261,12 +227,14 @@ public class LogView extends View {
                     if (Math.abs(dy) > 10) scrollingVertically = true;
 
                     if (scrollingHorizontally) {
+                        DebugDialog.setPaused(true);
                         scrollPosition.x = Mathf.clamp(scrollPosition.x - dx, 0, getScrollMaxLeft());
                         lastPoint.set(event.getX(), event.getY());
                         invalidate();
                     }
 
                     if (scrollingVertically) {
+                        DebugDialog.setPaused(true);
                         scrollPosition.y = Mathf.clamp(scrollPosition.y - dy, 0, getScrollMaxTop());
                         lastPoint.set(event.getX(), event.getY());
                         invalidate();
@@ -274,6 +242,7 @@ public class LogView extends View {
                 }
                 break;
             case MotionEvent.ACTION_UP:
+                DebugDialog.setPaused(false);
                 isActionDown = false;
                 break;
         }

@@ -1,9 +1,8 @@
 package dev.lcehub.emerald.xserver;
 
 public class Visual {
-    public enum Type {STATIC_GRAY, GRAYSCALE, STATIC_COLOR, PSEUDO_COLOR, TRUE_COLOR, DIRECT_COLOR};
     public final int id;
-    public final Type type = Type.TRUE_COLOR;
+    public final byte visualClass = 4;
     public final boolean displayable;
     public final byte depth;
     public final byte bitsPerRGBValue;

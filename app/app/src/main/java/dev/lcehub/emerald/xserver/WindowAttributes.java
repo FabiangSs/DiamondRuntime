@@ -1,6 +1,5 @@
 package dev.lcehub.emerald.xserver;
 
-import dev.lcehub.emerald.core.Bitmask;
 import dev.lcehub.emerald.xconnector.XInputStream;
 
 public class WindowAttributes {
@@ -19,11 +18,6 @@ public class WindowAttributes {
     public static final int FLAG_DO_NOT_PROPAGATE_MASK = 1<<12;
     public static final int FLAG_COLORMAP = 1<<13;
     public static final int FLAG_CURSOR = 1<<14;
-    public static final int FLAG_MAPPED = 1<<15;
-    public static final int FLAG_ENABLED = 1<<16;
-    public static final int FLAG_TRANSPARENT = 1<<17;
-    public static final int FLAG_RENDER_SUBWINDOWS = 1<<18;
-    public static final int FLAG_VIEWABLE = 1<<19;
     public enum BackingStore {NOT_USEFUL, WHEN_MAPPED, ALWAYS}
     public enum WindowClass {COPY_FROM_PARENT, INPUT_OUTPUT, INPUT_ONLY}
     public enum BitGravity {FORGET, NORTH_WEST, NORTH, NORTH_EAST, WEST, CENTER, EAST, SOUTH_WEST, SOUTH, SOUTH_EAST, STATIC}
@@ -35,9 +29,12 @@ public class WindowAttributes {
     private Cursor cursor;
     private Bitmask doNotPropagateMask = new Bitmask(0);
     private Bitmask eventMask = new Bitmask(0);
+    private boolean mapped = false;
+    private boolean overrideRedirect = false;
+    private boolean saveUnder = false;
+    private boolean enabled = true;
     private WinGravity winGravity = WinGravity.CENTER;
     private WindowClass windowClass = WindowClass.INPUT_OUTPUT;
-    private final Bitmask attributeFlags = new Bitmask(new int[]{FLAG_ENABLED, FLAG_RENDER_SUBWINDOWS, FLAG_VIEWABLE});
     public final Window window;
 
     public WindowAttributes(Window window) {
@@ -74,19 +71,19 @@ public class WindowAttributes {
     }
 
     public boolean isMapped() {
-        return attributeFlags.isSet(FLAG_MAPPED);
+        return mapped;
     }
 
     public void setMapped(boolean mapped) {
-        attributeFlags.set(FLAG_MAPPED, mapped);
+        this.mapped = mapped;
     }
 
     public boolean isOverrideRedirect() {
-        return attributeFlags.isSet(FLAG_OVERRIDE_REDIRECT);
+        return overrideRedirect;
     }
 
     public boolean isSaveUnder() {
-        return attributeFlags.isSet(FLAG_SAVE_UNDER);
+        return saveUnder;
     }
 
     public WinGravity getWinGravity() {
@@ -106,27 +103,11 @@ public class WindowAttributes {
     }
 
     public boolean isEnabled() {
-        return attributeFlags.isSet(FLAG_ENABLED);
+        return enabled;
     }
 
     public void setEnabled(boolean enabled) {
-        attributeFlags.set(FLAG_ENABLED, enabled);
-    }
-
-    public boolean isRenderSubwindows() {
-        return attributeFlags.isSet(FLAG_RENDER_SUBWINDOWS);
-    }
-
-    public void setRenderSubwindows(boolean renderSubwindows) {
-        attributeFlags.set(FLAG_RENDER_SUBWINDOWS, renderSubwindows);
-    }
-
-    public boolean isViewable() {
-        return attributeFlags.isSet(FLAG_VIEWABLE);
-    }
-
-    public void setViewable(boolean viewable) {
-        attributeFlags.set(FLAG_VIEWABLE, viewable);
+        this.enabled = enabled;
     }
 
     public void update(Bitmask valueMask, XInputStream inputStream, XClient client) {
@@ -151,8 +132,10 @@ public class WindowAttributes {
                     backingStore = BackingStore.values()[inputStream.readInt()];
                     break;
                 case FLAG_SAVE_UNDER:
+                    saveUnder = inputStream.readInt() == 1;
+                    break;
                 case FLAG_OVERRIDE_REDIRECT:
-                    attributeFlags.set(index, inputStream.readInt() == 1);
+                    overrideRedirect = inputStream.readInt() == 1;
                     break;
                 case FLAG_EVENT_MASK:
                     eventMask = new Bitmask(inputStream.readInt());
@@ -173,13 +156,5 @@ public class WindowAttributes {
         }
 
         client.xServer.windowManager.triggerOnUpdateWindowAttributes(window, valueMask);
-    }
-
-    public boolean isTransparent() {
-        return attributeFlags.isSet(FLAG_TRANSPARENT);
-    }
-
-    public void setTransparent(boolean transparent) {
-        attributeFlags.set(FLAG_TRANSPARENT, transparent);
     }
 }

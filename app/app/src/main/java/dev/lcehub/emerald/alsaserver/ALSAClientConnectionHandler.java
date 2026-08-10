@@ -1,22 +1,17 @@
 package dev.lcehub.emerald.alsaserver;
 
-import dev.lcehub.emerald.xconnector.ConnectedClient;
+import dev.lcehub.emerald.xconnector.Client;
 import dev.lcehub.emerald.xconnector.ConnectionHandler;
 
 public class ALSAClientConnectionHandler implements ConnectionHandler {
-    private final ALSAClient.Options options;
-
-    public ALSAClientConnectionHandler(ALSAClient.Options options) {
-        this.options = options;
+    @Override
+    public void handleNewConnection(Client client) {
+        client.createIOStreams();
+        client.setTag(new ALSAClient());
     }
 
     @Override
-    public void handleNewConnection(ConnectedClient client) {
-        client.setTag(new ALSAClient(options));
-    }
-
-    @Override
-    public void handleConnectionShutdown(ConnectedClient client) {
-        if (client.getTag() != null) ((ALSAClient)client.getTag()).release();
+    public void handleConnectionShutdown(Client client) {
+        ((ALSAClient)client.getTag()).release();
     }
 }

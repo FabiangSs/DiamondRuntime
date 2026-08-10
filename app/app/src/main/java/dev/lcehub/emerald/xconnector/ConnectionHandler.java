@@ -1,11 +1,7 @@
 package dev.lcehub.emerald.xconnector;
 
 public interface ConnectionHandler {
-    default ConnectedClient newConnectedClient(long clientPtr, int fd) {
-        return new ConnectedClient(clientPtr, fd);
-    }
+    void handleConnectionShutdown(Client client);
 
-    void handleConnectionShutdown(ConnectedClient client);
-
-    void handleNewConnection(ConnectedClient client);
+    void handleNewConnection(Client client);
 }

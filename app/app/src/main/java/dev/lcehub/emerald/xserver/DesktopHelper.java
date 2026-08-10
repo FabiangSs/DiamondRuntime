@@ -2,9 +2,6 @@ package dev.lcehub.emerald.xserver;
 
 import androidx.collection.ArrayMap;
 
-import dev.lcehub.emerald.winhandler.WinHandler;
-
-import java.util.ArrayList;
 import java.util.Map;
 
 public abstract class DesktopHelper {
@@ -17,13 +14,6 @@ public abstract class DesktopHelper {
                 updateFocusedWindow(xServer);
             }
         });
-
-        xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
-            @Override
-            public void onMapWindow(Window window) {
-                setFocusedWindow(xServer, window);
-            }
-        });
     }
 
     private static void updateFocusedWindow(XServer xServer) {
@@ -33,32 +23,13 @@ public abstract class DesktopHelper {
             if (child == null && focusedWindow != xServer.windowManager.rootWindow) {
                 xServer.windowManager.setFocus(xServer.windowManager.rootWindow, WindowManager.FocusRevertTo.NONE);
             }
-            else if (child != null && child != focusedWindow) {
-                setFocusedWindow(xServer, child);
-            }
         }
     }
-
-    private static void setFocusedWindow(XServer xServer, Window window) {
-        WinHandler winHandler = xServer.getWinHandler();
-        if (window.isApplicationWindow()) {
-            boolean parentIsRoot = window.getParent() == xServer.windowManager.rootWindow;
-            xServer.windowManager.setFocus(window, parentIsRoot ? WindowManager.FocusRevertTo.POINTER_ROOT : WindowManager.FocusRevertTo.PARENT);
-
-            if (window.isSurface()) {
-                ArrayList<Window> dialogWindows = xServer.windowManager.findDialogWindows(window.id);
-                if (!dialogWindows.isEmpty()) {
-                    for (Window dialogWindow : dialogWindows) winHandler.bringToFront(dialogWindow.getClassName(), dialogWindow.getHandle());
-                }
-                else winHandler.bringToFront(window.getClassName(), window.getHandle());
-            }
-        }
-        else if (window.isDialogBox()) {
-            winHandler.bringToFront(window.getClassName(), window.getHandle());
-        }
-    }
-
+    
     private static void setupXResources(XServer xServer) {
+        int atom = Atom.getId("RESOURCE_MANAGER");
+        int type = Atom.getId("STRING");
+
         ArrayMap<String, String> values = new ArrayMap<>();
         values.put("size", "20");
         values.put("theme", "dmz");
@@ -76,6 +47,6 @@ public abstract class DesktopHelper {
         }
 
         byte[] data = sb.toString().getBytes(XServer.LATIN1_CHARSET);
-        xServer.windowManager.rootWindow.modifyProperty(Atom.RESOURCE_MANAGER, Atom.STRING, Property.Format.BYTE_ARRAY, Property.Mode.APPEND, data);
+        xServer.windowManager.rootWindow.modifyProperty(atom, type, Property.Format.BYTE_ARRAY, Property.Mode.APPEND, data);
     }
 }

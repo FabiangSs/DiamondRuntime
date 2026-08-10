@@ -1,123 +1,383 @@
 package dev.lcehub.emerald.contentdialog;
 
 import android.content.Context;
+import android.util.Log;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Spinner;
+import android.widget.ToggleButton;
 
 import dev.lcehub.emerald.R;
-import dev.lcehub.emerald.container.DXWrappers;
+import dev.lcehub.emerald.container.Container;
+import dev.lcehub.emerald.contents.ContentProfile;
+import dev.lcehub.emerald.contents.ContentsManager;
 import dev.lcehub.emerald.core.AppUtils;
+import dev.lcehub.emerald.core.UnitUtils;
 import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.EnvVars;
-import dev.lcehub.emerald.core.FileUtils;
-import dev.lcehub.emerald.core.GeneralComponents;
 import dev.lcehub.emerald.core.KeyValueSet;
 import dev.lcehub.emerald.core.StringUtils;
-import dev.lcehub.emerald.widget.GPUCardAdapter;
-import dev.lcehub.emerald.xenvironment.RootFS;
+import dev.lcehub.emerald.core.VKD3DVersionItem;
+import dev.lcehub.emerald.xenvironment.ImageFs;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class DXVKConfigDialog extends ContentDialog {
-    public DXVKConfigDialog(String graphicsDriver, final View anchor) {
+    public interface ContentInstallHost {
+        void showInstallChoicePopup(View anchor, List<ContentProfile.ContentType> types, Runnable refreshAction);
+        void removeSelectedContent(List<ContentProfile.ContentType> types, java.util.function.Supplier<String> selectedValue, Runnable refreshAction);
+    }
+    public static final String DEFAULT_CONFIG = Container.DEFAULT_DXWRAPPERCONFIG;
+    public static final int DXVK_TYPE_NONE = 0;
+    public static final int DXVK_TYPE_ASYNC = 1;
+    public static final int DXVK_TYPE_GPLASYNC = 2;
+    private final ToggleButton swAsync;
+    private boolean isARM64EC = false;
+    private final ToggleButton swAsyncCache;
+    private final ToggleButton swMaxFrameLatency;
+    private final View llAsync;
+    private final View llAsyncCache;
+    private final Context context;
+    private final ContentInstallHost installHost;
+    private final ContentsManager contentsManager;
+    private static List<String> dxvkVersions;
+    private static final Pattern SEMVER = Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+
+    private static Integer tryGetMajor(String s) {
+        if (s == null) return null;
+        Matcher m = SEMVER.matcher(s);
+        if (!m.find()) return null;
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    public static final String[] VKD3D_FEATURE_LEVEL = {"12_0", "12_1", "12_2", "11_1", "11_0", "10_1", "10_0", "9_3", "9_2", "9_1"};
+
+    private static int compareVersion(String varA, String varB) {
+        final String[] levelsA = varA.split("\\.");
+        final String[] levelsB = varB.split("\\.");
+        int minLen = Math.min(levelsA.length, levelsB.length);
+        int numA, numB;
+
+        for (int i = 0; i < minLen; i++) {
+            numA = Integer.parseInt(levelsA[i]);
+            numB = Integer.parseInt(levelsB[i]);
+            if (numA != numB)
+                return numA - numB;
+        }
+
+        if (levelsA.length != levelsB.length)
+            return levelsA.length - levelsB.length;
+
+        return 0;
+    }
+
+    public DXVKConfigDialog(View anchor, boolean isARM64EC) {
+        this(anchor, isARM64EC, null, new ContentsManager(anchor.getContext()));
+    }
+
+    public DXVKConfigDialog(View anchor, boolean isARM64EC, ContentInstallHost installHost, ContentsManager contentsManager) {
         super(anchor.getContext(), R.layout.dxvk_config_dialog);
-        setIcon(R.drawable.icon_display_settings);
-        Context context = anchor.getContext();
+        context = anchor.getContext();
+        this.installHost = installHost;
+        this.contentsManager = contentsManager;
+        findViewById(R.id.FrameLayout).getLayoutParams().width = Math.min(AppUtils.getPreferredDialogWidth(context), Math.round(UnitUtils.dpToPx(300)));
+        setIcon(R.drawable.icon_monitor);
         setTitle("DXVK "+context.getString(R.string.configuration));
 
-        final Spinner sVersion = findViewById(R.id.SVersion);
+        final Spinner sDXVKVersion = findViewById(R.id.SDXVKVersion);
+        final Spinner sVKD3DVersion = findViewById(R.id.SVKD3DVersion);
         final Spinner sFramerate = findViewById(R.id.SFramerate);
-        final Spinner sMaxDeviceMemory = findViewById(R.id.SMaxDeviceMemory);
-        final Spinner sCustomDevice = findViewById(R.id.SCustomDevice);
-        final Spinner sDDrawWrapper = findViewById(R.id.SDDrawWrapper);
+        final Spinner sVKD3DFeatureLevel = findViewById(R.id.SVKD3DFeatureLevel);
+        final Spinner sDDRAWrapper = findViewById(R.id.SDDRAWrapper);
+        swAsync = findViewById(R.id.SWAsync);
+        swAsyncCache = findViewById(R.id.SWAsyncCache);
+        swMaxFrameLatency = findViewById(R.id.SWMaxFrameLatency);
+        llAsync = findViewById(R.id.LLAsync);
+        llAsyncCache = findViewById(R.id.LLAsyncCache);
 
-        KeyValueSet config = new KeyValueSet(anchor.getTag());
-        AppUtils.setSpinnerSelectionFromIdentifier(sFramerate, config.get("framerate", "0"));
-        AppUtils.setSpinnerSelectionFromMemorySize(sMaxDeviceMemory, config.get("maxDeviceMemory", "0"));
-        AppUtils.setSpinnerSelectionFromIdentifier(sDDrawWrapper, config.get("ddrawWrapper", DXWrappers.WINED3D));
+        this.contentsManager.syncContents();
 
-        String version = config.get("version");
-        String defaultVersion = DefaultVersion.DXVK(graphicsDriver);
-        GeneralComponents.initViews(GeneralComponents.Type.DXVK, findViewById(R.id.DXVKToolbox), sVersion, version, defaultVersion);
+        KeyValueSet config = parseConfig(anchor.getTag());
+        loadDxvkVersionSpinner(this.contentsManager, sDXVKVersion, isARM64EC);
+        loadVkd3dVersionSpinner(this.contentsManager, sVKD3DVersion, isARM64EC);
 
-        GPUCardAdapter adapter = new GPUCardAdapter(context, android.R.layout.simple_spinner_dropdown_item, R.string.none);
-        sCustomDevice.setAdapter(adapter);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, VKD3D_FEATURE_LEVEL);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled_compact);
+        sVKD3DFeatureLevel.setAdapter(adapter);
+        configureContentSpinnerDropdown(sVKD3DFeatureLevel);
 
-        String customDevice = config.get("customDevice");
-        if (customDevice.contains(":")) {
-            try {
-                int deviceId = Integer.parseInt(customDevice.split(":")[0], 16);
-                sCustomDevice.setSelection(adapter.getPositionByDeviceId(deviceId));
+        setDXVKSpinner(sDXVKVersion, config, this.contentsManager, isARM64EC);
+        AppUtils.setSpinnerSelectionFromIdentifier(sFramerate, config.get("framerate"));
+        AppUtils.setSpinnerSelectionFromIdentifier(sVKD3DVersion, config.get("vkd3dVersion"));
+        AppUtils.setSpinnerSelectionFromIdentifier(sVKD3DFeatureLevel, config.get("vkd3dLevel"));
+        AppUtils.setSpinnerSelectionFromIdentifier(sDDRAWrapper, config.get("ddrawrapper"));
+
+        swAsync.setChecked(config.get("async").equals("1"));
+        swAsyncCache.setChecked(config.get("asyncCache").equals("1"));
+        swMaxFrameLatency.setChecked(config.get("maxFrameLatency").equals("1"));
+
+        updateConfigVisibility(getDXVKType(sDXVKVersion.getSelectedItemPosition()));
+
+        sDXVKVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updateConfigVisibility(getDXVKType(position));
             }
-            catch (NumberFormatException e) {}
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+
+            }
+        });
+
+        sVKD3DVersion.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                String selectedVersion = sVKD3DVersion.getSelectedItem().toString();
+                String currentDXVKVersion = config.get("version");
+
+                if (!selectedVersion.equals("None")) {
+                    ArrayList<String> versions = new ArrayList<>();
+
+                    for (int i = 0; i < dxvkVersions.size(); i++) {
+                        Integer major = tryGetMajor(dxvkVersions.get(i));
+                        if (major != null && major < 2) {
+                            versions.add(dxvkVersions.get(i));
+                        }
+                    }
+
+                    dxvkVersions.removeAll(versions);
+
+                    ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, dxvkVersions);
+                    adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled);
+                    sDXVKVersion.setAdapter(adapter);
+                    sDXVKVersion.setPopupBackgroundResource(R.drawable.dialog_background_dark_blue);
+
+                    Integer curMajor = tryGetMajor(currentDXVKVersion);
+                    AppUtils.setSpinnerSelectionFromIdentifier(
+                            sDXVKVersion,
+                            (curMajor != null && curMajor >= 2) ? currentDXVKVersion : DefaultVersion.DXVK
+                    );
+                    updateConfigVisibility(getDXVKType(sDXVKVersion.getSelectedItemPosition()));
+                }
+                else {
+                    loadDxvkVersionSpinner(DXVKConfigDialog.this.contentsManager, sDXVKVersion, isARM64EC);
+                    AppUtils.setSpinnerSelectionFromIdentifier(sDXVKVersion, config.get("version"));
+                }
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+            }
+        });
+
+
+        if (installHost != null) {
+            findViewById(R.id.BTDXVKInstall).setOnClickListener(v ->
+                    installHost.showInstallChoicePopup(v, Collections.singletonList(ContentProfile.ContentType.CONTENT_TYPE_DXVK), () -> {
+                        this.contentsManager.syncContents();
+                        loadDxvkVersionSpinner(this.contentsManager, sDXVKVersion, isARM64EC);
+                    }));
+
+            findViewById(R.id.BTDXVKRemove).setOnClickListener(v ->
+                    installHost.removeSelectedContent(Collections.singletonList(ContentProfile.ContentType.CONTENT_TYPE_DXVK),
+                            () -> sDXVKVersion.getSelectedItem() != null ? sDXVKVersion.getSelectedItem().toString() : "",
+                            () -> {
+                                this.contentsManager.syncContents();
+                                loadDxvkVersionSpinner(this.contentsManager, sDXVKVersion, isARM64EC);
+                            }));
+
+            findViewById(R.id.BTVkd3dInstall).setOnClickListener(v ->
+                    installHost.showInstallChoicePopup(v, Collections.singletonList(ContentProfile.ContentType.CONTENT_TYPE_VKD3D), () -> {
+                        this.contentsManager.syncContents();
+                        loadVkd3dVersionSpinner(this.contentsManager, sVKD3DVersion, isARM64EC);
+                    }));
+
+            findViewById(R.id.BTVkd3dRemove).setOnClickListener(v ->
+                    installHost.removeSelectedContent(Collections.singletonList(ContentProfile.ContentType.CONTENT_TYPE_VKD3D),
+                            () -> sVKD3DVersion.getSelectedItem() != null ? sVKD3DVersion.getSelectedItem().toString() : "",
+                            () -> {
+                                this.contentsManager.syncContents();
+                                loadVkd3dVersionSpinner(this.contentsManager, sVKD3DVersion, isARM64EC);
+                            }));
+        } else {
+            findViewById(R.id.BTDXVKInstall).setVisibility(View.GONE);
+            findViewById(R.id.BTDXVKRemove).setVisibility(View.GONE);
+            findViewById(R.id.BTVkd3dInstall).setVisibility(View.GONE);
+            findViewById(R.id.BTVkd3dRemove).setVisibility(View.GONE);
         }
 
         setOnConfirmCallback(() -> {
-            KeyValueSet newConfig = new KeyValueSet();
-            newConfig.put("version", sVersion.getSelectedItem().toString());
-            newConfig.put("framerate", StringUtils.parseNumber(sFramerate.getSelectedItem()));
-            newConfig.put("maxDeviceMemory", StringUtils.parseMemorySize(sMaxDeviceMemory.getSelectedItem()));
-
-            String ddrawWrapper = StringUtils.parseIdentifier(sDDrawWrapper.getSelectedItem());
-            if (!ddrawWrapper.equals(DXWrappers.WINED3D)) newConfig.put("ddrawWrapper", ddrawWrapper);
-
-            GPUCardAdapter.GPUCard gpuCard = (GPUCardAdapter.GPUCard)sCustomDevice.getSelectedItem();
-            if (gpuCard.deviceId > 0) {
-                newConfig.put("customDevice", String.format("%04x", gpuCard.deviceId)+":"+String.format("%04x", gpuCard.vendorId)+":"+gpuCard.name);
-            }
-
-            anchor.setTag(newConfig.toString());
+            config.put("version", sDXVKVersion.getSelectedItem().toString());
+            config.put("framerate", StringUtils.parseNumber(sFramerate.getSelectedItem()));
+            config.put("async", ((swAsync.isChecked())&&(llAsync.getVisibility()==View.VISIBLE))?"1":"0");
+            config.put("asyncCache", ((swAsyncCache.isChecked())&&(llAsyncCache.getVisibility()==View.VISIBLE))?"1":"0");
+            config.put("maxFrameLatency", swMaxFrameLatency.isChecked()?"1":"0");
+            VKD3DVersionItem selectedItem = (VKD3DVersionItem) sVKD3DVersion.getSelectedItem();
+            config.put("vkd3dVersion", selectedItem.getIdentifier());
+            config.put("vkd3dLevel", sVKD3DFeatureLevel.getSelectedItem().toString());
+            config.put("ddrawrapper", StringUtils.parseIdentifier(sDDRAWrapper.getSelectedItem().toString()));
+            anchor.setTag(config.toString());
         });
     }
 
-    public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars) {
-        if (config.get("version").contains("async")) envVars.put("DXVK_ASYNC", "1");
-        envVars.put("DXVK_STATE_CACHE_PATH", RootFS.getDosUserCachePath());
-        envVars.put("DXVK_LOG_LEVEL", "none");
+    private void updateConfigVisibility(int dxvkType) {
+        boolean wasAsyncVisible = llAsync.getVisibility() == View.VISIBLE;
+        boolean wasAsyncCacheVisible = llAsyncCache.getVisibility() == View.VISIBLE;
 
-        File rootDir = RootFS.find(context).getRootDir();
-        File dxvkConfigFile = new File(rootDir, RootFS.USER_CONFIG_PATH+"/dxvk.conf");
-
-        FileUtils.delete(dxvkConfigFile);
-        String content = getDXVKConfigContent(config);
-        if (FileUtils.writeString(dxvkConfigFile, content)) {
-            envVars.put("DXVK_CONFIG_FILE", RootFS.getDosUserConfigPath()+"\\dxvk.conf");
+        if (dxvkType == DXVK_TYPE_ASYNC) {
+            llAsync.setVisibility(View.VISIBLE);
+            llAsyncCache.setVisibility(View.GONE);
+            if (!wasAsyncVisible) swAsync.setChecked(true);
+        } else if (dxvkType == DXVK_TYPE_GPLASYNC) {
+            llAsync.setVisibility(View.VISIBLE);
+            llAsyncCache.setVisibility(View.VISIBLE);
+            if (!wasAsyncVisible) swAsync.setChecked(true);
+            if (!wasAsyncCacheVisible) swAsyncCache.setChecked(true);
+        } else {
+            llAsync.setVisibility(View.GONE);
+            llAsyncCache.setVisibility(View.GONE);
         }
     }
 
-    private static String getDXVKConfigContent(KeyValueSet config) {
+    private int getDXVKType(int pos) {
+        final String v = dxvkVersions.get(pos);
+        int dxvkType = DXVK_TYPE_NONE;
+        if (v.contains("gplasync"))
+            dxvkType = DXVK_TYPE_GPLASYNC;
+        else if (v.contains("async"))
+            dxvkType = DXVK_TYPE_ASYNC;
+        return dxvkType;
+    }
+
+    private void setDXVKSpinner(Spinner sDXVKVersion, KeyValueSet config, ContentsManager contentsManager, boolean isARM64EC) {
+        String selectedVersion = config.get("vkd3dVersion");
+        String currentDXVKVersion = config.get("version");
+        if (!selectedVersion.equals("None")) {
+            ArrayList<String> versions = new ArrayList<>();
+
+            for (int i = 0; i < dxvkVersions.size(); i++) {
+                Integer major = tryGetMajor(dxvkVersions.get(i));
+                if (major != null && major < 2) {
+                    versions.add(dxvkVersions.get(i));
+                }
+            }
+
+            dxvkVersions.removeAll(versions);
+
+            ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, dxvkVersions);
+            adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled_compact);
+            sDXVKVersion.setAdapter(adapter);
+            configureContentSpinnerDropdown(sDXVKVersion);
+
+            Integer curMajor = tryGetMajor(currentDXVKVersion);
+            AppUtils.setSpinnerSelectionFromIdentifier(
+                    sDXVKVersion,
+                    (curMajor != null && curMajor >= 2) ? currentDXVKVersion : DefaultVersion.DXVK
+            );
+        }
+        else
+            AppUtils.setSpinnerSelectionFromIdentifier(sDXVKVersion, currentDXVKVersion);
+    }
+
+    public static KeyValueSet parseConfig(Object config) {
+        String data = config != null && !config.toString().isEmpty() ? config.toString() :  DEFAULT_CONFIG;
+        return new KeyValueSet(data);
+    }
+
+    public static void setEnvVars(Context context, KeyValueSet config, EnvVars envVars) {
         String content = "";
 
-        String maxDeviceMemory = config.get("maxDeviceMemory");
-        if (!maxDeviceMemory.isEmpty() && !maxDeviceMemory.equals("0")) {
-            content += "dxgi.maxDeviceMemory = "+maxDeviceMemory+"\n";
-            content += "dxgi.maxSharedMemory = "+maxDeviceMemory+"\n";
-        }
-
         String framerate = config.get("framerate");
+
         if (!framerate.isEmpty() && !framerate.equals("0")) {
-            content += "dxgi.maxFrameRate = "+framerate+"\n";
-            content += "d3d9.maxFrameRate = "+framerate+"\n";
+            content += "dxgi.maxFrameRate = " + framerate + "; ";
+            content += "d3d9.maxFrameRate = " + framerate;
+            envVars.put("DXVK_FRAME_RATE", framerate);
         }
 
-        String customDevice = config.get("customDevice");
-        if (customDevice.contains(":")) {
-            String[] parts = customDevice.split(":");
-            content += "dxgi.customDeviceId = "+parts[0]+"\n";
-            content += "dxgi.customVendorId = "+parts[1]+"\n";
-
-            content += "d3d9.customDeviceId = "+parts[0]+"\n";
-            content += "d3d9.customVendorId = "+parts[1]+"\n";
-
-            content += "dxgi.customDeviceDesc = \""+parts[2]+"\"\n";
-            content += "d3d9.customDeviceDesc = \""+parts[2]+"\"\n";
+        String maxFrameLatency = config.get("maxFrameLatency");
+        if (!maxFrameLatency.isEmpty() && !maxFrameLatency.equals("0")) {
+            if (!content.isEmpty()) content += "; ";
+            content += "dxgi.maxFrameLatency = 1";
         }
 
-        content += "d3d11.constantBufferRangeCheck = \"True\"\n\n";
+        String async = config.get("async");
+        if (!async.isEmpty() && !async.equals("0"))
+            envVars.put("DXVK_ASYNC", "1");
 
-        content += "[GTA5.exe]\n";
-        content += "dxgi.maxDeviceMemory = 512\n";
-        content += "dxgi.maxSharedMemory = 512\n";
-        return content;
+        String asyncCache = config.get("asyncCache");
+        if (!asyncCache.isEmpty() && !asyncCache.equals("0"))
+            envVars.put("DXVK_GPLASYNCCACHE", "1");
+
+        if (!content.isEmpty())
+            envVars.put("DXVK_CONFIG", content);
+
+        envVars.put("VKD3D_FEATURE_LEVEL", config.get("vkd3dLevel"));
+        envVars.put("DXVK_STATE_CACHE_PATH", context.getFilesDir() + "/imagefs/" + ImageFs.CACHE_PATH);
     }
+
+    private boolean isVersionAllowedForArch(String version, boolean isARM64EC) {
+        return isARM64EC || !version.toLowerCase().contains("arm64ec");
+    }
+
+    private void loadDxvkVersionSpinner(ContentsManager manager, Spinner spinner, boolean isARM64EC) {
+        this.isARM64EC = isARM64EC;
+        String[] originalItems = context.getResources().getStringArray(R.array.dxvk_version_entries);
+        List<String> itemList = new ArrayList<>(Arrays.asList(originalItems));
+
+        for (ContentProfile profile : manager.getInstalledProfiles(ContentProfile.ContentType.CONTENT_TYPE_DXVK)) {
+            String entryName = ContentsManager.getEntryName(profile);
+            int firstDashIndex = entryName.indexOf('-');
+            itemList.add(entryName.substring(firstDashIndex + 1));
+        }
+
+        itemList.removeIf(version -> !isVersionAllowedForArch(version, isARM64EC));
+
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, itemList);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled_compact);
+        spinner.setAdapter(adapter);
+        configureContentSpinnerDropdown(spinner);
+        dxvkVersions = itemList;
+    }
+
+    private void loadVkd3dVersionSpinner(ContentsManager manager, Spinner spinner, boolean isARM64EC) {
+        List<VKD3DVersionItem> itemList = new ArrayList<>();
+
+        String[] originalItems = context.getResources().getStringArray(R.array.vkd3d_version_entries);
+        for (String version : originalItems) {
+            if (isVersionAllowedForArch(version, isARM64EC))
+                itemList.add(new VKD3DVersionItem(version));
+        }
+
+        for (ContentProfile profile : manager.getInstalledProfiles(ContentProfile.ContentType.CONTENT_TYPE_VKD3D)) {
+            String displayName = profile.verName;
+            int versionCode = profile.verCode;
+            if (isVersionAllowedForArch(displayName, isARM64EC))
+                itemList.add(new VKD3DVersionItem(displayName, versionCode));
+        }
+
+        ArrayAdapter<VKD3DVersionItem> adapter = new ArrayAdapter<>(context, R.layout.spinner_item_amoled, itemList);
+        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item_amoled_compact);
+        spinner.setAdapter(adapter);
+        configureContentSpinnerDropdown(spinner);
+    }
+
+    private void configureContentSpinnerDropdown(Spinner spinner) {
+        spinner.setPopupBackgroundResource(R.drawable.dialog_background_dark_blue);
+        spinner.setDropDownWidth(Math.round(UnitUtils.dpToPx(240)));
+        spinner.setDropDownVerticalOffset(Math.round(UnitUtils.dpToPx(-2)));
+    }
+
 }

@@ -1,29 +1,40 @@
 package dev.lcehub.emerald;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.media.midi.MidiDeviceInfo;
-import android.media.midi.MidiManager;
+import android.content.res.TypedArray;
+import android.graphics.Color;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
+import android.os.Environment;
+import android.telecom.Call;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.FrameLayout;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.collection.ArrayMap;
 import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 import androidx.preference.PreferenceManager;
@@ -32,46 +43,62 @@ import com.google.android.material.navigation.NavigationView;
 import dev.lcehub.emerald.box64.Box64EditPresetDialog;
 import dev.lcehub.emerald.box64.Box64Preset;
 import dev.lcehub.emerald.box64.Box64PresetManager;
-import dev.lcehub.emerald.container.Container;
-import dev.lcehub.emerald.container.ContainerManager;
 import dev.lcehub.emerald.contentdialog.ContentDialog;
-import dev.lcehub.emerald.contentdialog.GamepadPlayerConfigDialog;
-import dev.lcehub.emerald.contentdialog.SoundFontTestDialog;
+import dev.lcehub.emerald.contents.ContentsManager;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.ArrayUtils;
 import dev.lcehub.emerald.core.Callback;
-import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.FileUtils;
-import dev.lcehub.emerald.core.GeneralComponents;
-import dev.lcehub.emerald.core.LocaleHelper;
 import dev.lcehub.emerald.core.PreloaderDialog;
-import dev.lcehub.emerald.core.StringUtils;
-import dev.lcehub.emerald.core.WineInfo;
-import dev.lcehub.emerald.core.WineInstaller;
-import dev.lcehub.emerald.widget.ColorPickerView;
-import dev.lcehub.emerald.widget.LogView;
-import dev.lcehub.emerald.widget.SeekBar;
-import dev.lcehub.emerald.winhandler.GamepadHandler;
-import dev.lcehub.emerald.xenvironment.RootFS;
-import dev.lcehub.emerald.xenvironment.RootFSInstaller;
+import dev.lcehub.emerald.core.TarCompressorUtils;
+import dev.lcehub.emerald.fexcore.FEXCoreEditPresetDialog;
+import dev.lcehub.emerald.fexcore.FEXCorePreset;
+import dev.lcehub.emerald.fexcore.FEXCorePresetManager;
+import dev.lcehub.emerald.inputcontrols.ControlElement;
+import dev.lcehub.emerald.inputcontrols.ExternalController;
+import dev.lcehub.emerald.midi.MidiManager;
+import dev.lcehub.emerald.widget.InputControlsView;
+import dev.lcehub.emerald.xenvironment.ImageFsInstaller;
 
 import org.json.JSONArray;
 import org.json.JSONException;
+import org.w3c.dom.Text;
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.atomic.AtomicLong;
 
 public class SettingsFragment extends Fragment {
     public static final String DEFAULT_WINE_DEBUG_CHANNELS = "warn,err,fixme";
-    public static final byte APP_THEME_LIGHT = 0;
-    public static final byte APP_THEME_DARK = 1;
-    private Callback<Uri> selectWineFileCallback;
+    public static final String DEFAULT_WINLATOR_PATH = Environment.getExternalStorageDirectory().getPath() + "/Winlator";
+    public static final String DEFAULT_SHORTCUT_EXPORT_PATH = DEFAULT_WINLATOR_PATH + "/Shortcuts";
+    private Callback<Uri> installSoundFontCallback;
     private PreloaderDialog preloaderDialog;
     private SharedPreferences preferences;
-    private boolean midiDeviceCallbackRegistered = false;
+
+	// Disable or enable True Mouse Control
+	private CheckBox cbCursorLock;
+    // Disable or enable Xinput Processing
+    private CheckBox cbXinputToggle;
+
+    private CheckBox cbEnableBigPictureMode;
+    private CheckBox cbEnableCustomApiKey;
+    private EditText etCustomApiKey;
+
+    private CheckBox cbDarkMode;
+    boolean isDarkMode;
+
+    private static final int REQUEST_CODE_WINLATOR_PATH = 1002;
+    private static final int REQUEST_CODE_SHORTCUT_EXPORT_PATH = 1003;
+    private static final int REQUEST_CODE_INSTALL_SOUNDFONT = 1001;
+    private static final int REQUEST_CODE_IMPORT_BOX64_PRESET = 1004;
+    private static final int REQUEST_CODE_IMPORT_FEXCORE_PRESET = 1005;
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -83,21 +110,12 @@ public class SettingsFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        // Apply dynamic styles to all labels
+        applyDynamicStylesRecursively(view);
         ((AppCompatActivity)getActivity()).getSupportActionBar().setTitle(R.string.settings);
     }
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        if (requestCode == MainActivity.OPEN_FILE_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
-            try {
-                if (selectWineFileCallback != null && data != null) selectWineFileCallback.call(data.getData());
-            }
-            catch (Exception e) {
-                AppUtils.showToast(getContext(), R.string.unable_to_import_profile);
-            }
-            selectWineFileCallback = null;
-        }
-    }
+
 
     @Nullable
     @Override
@@ -106,37 +124,144 @@ public class SettingsFragment extends Fragment {
         final Context context = getContext();
         preferences = PreferenceManager.getDefaultSharedPreferences(context);
 
-        final Spinner sSoundFont = view.findViewById(R.id.SSoundFont);
-        String soundfont = preferences.getString("soundfont", null);
-        GeneralComponents.initViews(GeneralComponents.Type.SOUNDFONT, view.findViewById(R.id.SoundFontToolbox), sSoundFont, soundfont, DefaultVersion.SOUNDFONT);
-        view.findViewById(R.id.BTSoundFontTest).setOnClickListener((v) -> (new SoundFontTestDialog(context, sSoundFont.getSelectedItem().toString())).show());
+        // Check for Dark Mode preference
+        isDarkMode = preferences.getBoolean("dark_mode", true);
+        // Apply dynamic styles
+        applyDynamicStyles(view, isDarkMode);
 
-        final Spinner sMIDIInputDevice = view.findViewById(R.id.SMIDIInputDevice);
-        String midiInputDevice = preferences.getString("midi_input_device", "auto");
-        loadMIDIInputDeviceSpinner(sMIDIInputDevice, midiInputDevice);
+        // Initialize the Dark Mode checkbox
+        cbDarkMode = view.findViewById(R.id.CBDarkMode);
+        cbDarkMode.setChecked(preferences.getBoolean("dark_mode", true));
+        cbDarkMode.setVisibility(View.GONE);
 
-        final Spinner sBox64Version = view.findViewById(R.id.SBox64Version);
-        String box64Version = preferences.getString("box64_version", null);
-        GeneralComponents.initViews(GeneralComponents.Type.BOX64, view.findViewById(R.id.Box64Toolbox), sBox64Version, box64Version, DefaultVersion.BOX64);
+        cbDarkMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            // Save dark mode preference
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putBoolean("dark_mode", isChecked);
+            editor.apply();
+
+            // Update the UI or activity theme if necessary
+            updateTheme(isChecked);
+        });
+
+        // Initialize Big Picture Mode Checkbox
+        cbEnableBigPictureMode = view.findViewById(R.id.CBEnableBigPictureMode);
+        cbEnableBigPictureMode.setChecked(preferences.getBoolean("enable_big_picture_mode", false));
+
+        initCustomApiKeySettings(view);
+
+        // Initialize the cursor lock checkbox
+        cbCursorLock = view.findViewById(R.id.CBCursorLock);
+        cbCursorLock.setChecked(preferences.getBoolean("cursor_lock", true));
+
+        // Initialize the xinput toggle checkbox
+        cbXinputToggle = view.findViewById(R.id.CBXinputToggle);
+        cbXinputToggle.setChecked(preferences.getBoolean("xinput_toggle", false));
+
+        Button btnChooseWinlatorPath = view.findViewById(R.id.BTChooseWinlatorPath);
+        TextView tvWinlatorPath = view.findViewById(R.id.TVWinlatorPath);
+
+        String savedUriString = preferences.getString("winlator_path_uri", null);
+        if (savedUriString == null) {
+            // No saved path, set default path
+            tvWinlatorPath.setText(DEFAULT_WINLATOR_PATH);
+        } else {
+            // Parse and display the saved URI path
+            Uri savedUri = Uri.parse(savedUriString);
+            String displayPath = FileUtils.getFilePathFromUri(getContext(), savedUri);
+            tvWinlatorPath.setText(displayPath != null ? displayPath : savedUriString);
+        }
+
+        btnChooseWinlatorPath.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE); // Launch File Picker for directory selection
+            startActivityForResult(intent, REQUEST_CODE_WINLATOR_PATH);
+        });
+
+        Button btChooseShortcutExportPath = view.findViewById(R.id.BTChooseShortcutExportPath);
+        TextView tvShortcutExportPath = view.findViewById(R.id.TVShortcutExportPath);
+
+        savedUriString = preferences.getString("shortcuts_export_path_uri", null);
+
+        if (savedUriString != null) {
+            Uri savedUri = Uri.parse(savedUriString);
+            String displayPath = FileUtils.getFilePathFromUri(context, savedUri);
+            tvShortcutExportPath.setText(displayPath != null ? displayPath : savedUriString);
+        }
+        else {
+            tvShortcutExportPath.setText(DEFAULT_SHORTCUT_EXPORT_PATH);
+        }
+
+        btChooseShortcutExportPath.setOnClickListener(v -> {
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            startActivityForResult(intent, REQUEST_CODE_SHORTCUT_EXPORT_PATH);
+        });
 
         final Spinner sBox64Preset = view.findViewById(R.id.SBox64Preset);
-        loadBox64PresetSpinner(view, sBox64Preset);
+        loadBox64PresetSpinners(view, sBox64Preset);
 
-        final RadioGroup rgAppTheme = view.findViewById(R.id.RGAppTheme);
-        final int oldAppThemeId = preferences.getInt("app_theme", APP_THEME_DARK) == APP_THEME_DARK ? R.id.RBDark : R.id.RBLight;
-        rgAppTheme.check(oldAppThemeId);
+        final Spinner sFEXCorePreset = view.findViewById(R.id.SFEXCorePreset);
+        loadFEXCorePresetSpinners(view, sFEXCorePreset);
 
-        final CheckBox cbMoveCursorToTouchpoint = view.findViewById(R.id.CBMoveCursorToTouchpoint);
-        cbMoveCursorToTouchpoint.setChecked(preferences.getBoolean("move_cursor_to_touchpoint", false));
+        final Spinner sMIDISoundFont = view.findViewById(R.id.SMIDISoundFont);
 
-        final CheckBox cbCapturePointerOnExternalMouse = view.findViewById(R.id.CBCapturePointerOnExternalMouse);
-        cbCapturePointerOnExternalMouse.setChecked(preferences.getBoolean("capture_pointer_on_external_mouse", true));
+        sMIDISoundFont.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
 
-        final CheckBox cbOpenAndroidBrowserFromWine = view.findViewById(R.id.CBOpenAndroidBrowserFromWine);
-        cbOpenAndroidBrowserFromWine.setChecked(preferences.getBoolean("open_android_browser_from_wine", true));
+        final View btInstallSF = view.findViewById(R.id.BTInstallSF);
+        final View btRemoveSF = view.findViewById(R.id.BTRemoveSF);
 
-        final CheckBox cbUseAndroidClipboardOnWine = view.findViewById(R.id.CBUseAndroidClipboardOnWine);
-        cbUseAndroidClipboardOnWine.setChecked(preferences.getBoolean("use_android_clipboard_on_wine", false));
+        MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+        btInstallSF.setOnClickListener(v -> {
+            installSoundFontCallback = uri -> {
+                PreloaderDialog dialog = new PreloaderDialog(requireActivity());
+                dialog.showOnUiThread(R.string.installing_content);
+                MidiManager.installSF2File(context, uri, new MidiManager.OnSoundFontInstalledCallback() {
+                    @Override
+                    public void onSuccess() {
+                        dialog.closeOnUiThread();
+                        requireActivity().runOnUiThread(() -> {
+                            ContentDialog.alert(context, R.string.sound_font_installed_success, null);
+                            MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+                        });
+                    }
+
+                    @Override
+                    public void onFailed(int reason) {
+                        dialog.closeOnUiThread();
+                        int resId = switch (reason) {
+                            case MidiManager.ERROR_BADFORMAT -> R.string.sound_font_bad_format;
+                            case MidiManager.ERROR_EXIST -> R.string.sound_font_already_exist;
+                            default -> R.string.sound_font_installed_failed;
+                        };
+                        requireActivity().runOnUiThread(() -> ContentDialog.alert(context, resId, null));
+                    }
+                });
+            };
+
+            // Open the file picker with the request code for SoundFont installation
+            openFile(REQUEST_CODE_INSTALL_SOUNDFONT);
+        });
+
+        btRemoveSF.setOnClickListener(v -> {
+            if (sMIDISoundFont.getSelectedItemPosition() != 0) {
+                ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_sound_font, () -> {
+                    if (MidiManager.removeSF2File(context, sMIDISoundFont.getSelectedItem().toString())) {
+                        AppUtils.showToast(context, R.string.sound_font_removed_success);
+                        MidiManager.loadSFSpinnerWithoutDisabled(sMIDISoundFont);
+                    } else
+                        AppUtils.showToast(context, R.string.sound_font_removed_failed);
+                });
+            } else
+                AppUtils.showToast(context, R.string.cannot_remove_default_sound_font);
+        });
+
+        final CheckBox cbUseDRI3 = view.findViewById(R.id.CBUseDRI3);
+        cbUseDRI3.setChecked(preferences.getBoolean("use_dri3", true));
+
+        final CheckBox cbUseXR = view.findViewById(R.id.CBUseXR);
+        cbUseXR.setChecked(preferences.getBoolean("use_xr", true));
+        if (!XrActivity.isSupported()) {
+            cbUseXR.setVisibility(View.GONE);
+        }
 
         final CheckBox cbEnableWineDebug = view.findViewById(R.id.CBEnableWineDebug);
         cbEnableWineDebug.setChecked(preferences.getBoolean("enable_wine_debug", false));
@@ -144,275 +269,360 @@ public class SettingsFragment extends Fragment {
         final ArrayList<String> wineDebugChannels = new ArrayList<>(Arrays.asList(preferences.getString("wine_debug_channels", DEFAULT_WINE_DEBUG_CHANNELS).split(",")));
         loadWineDebugChannels(view, wineDebugChannels);
 
-        final Spinner sBox64Logs = view.findViewById(R.id.SBox64Logs);
-        sBox64Logs.setSelection(preferences.getInt("box64_logs", 0));
+        final CheckBox cbEnableBox64Logs = view.findViewById(R.id.CBEnableBox64Logs);
+        cbEnableBox64Logs.setChecked(preferences.getBoolean("enable_box64_logs", false));
 
-        final CheckBox cbSaveLogsToFile = view.findViewById(R.id.CBSaveLogsToFile);
-        cbSaveLogsToFile.setChecked(preferences.getBoolean("save_logs_to_file", false));
-
-        final EditText etLogFile = view.findViewById(R.id.ETLogFile);
-        final String defaultLogPath = LogView.getLogFile().getPath();
-        etLogFile.setText(preferences.getString("log_file", defaultLogPath));
-        etLogFile.setVisibility(cbSaveLogsToFile.isChecked() ? View.VISIBLE : View.GONE);
-        cbSaveLogsToFile.setOnCheckedChangeListener((buttonView, isChecked) -> etLogFile.setVisibility(isChecked ? View.VISIBLE : View.GONE));
-
+        final TextView tvCursorSpeed = view.findViewById(R.id.TVCursorSpeed);
         final SeekBar sbCursorSpeed = view.findViewById(R.id.SBCursorSpeed);
-        sbCursorSpeed.setValue(preferences.getFloat("cursor_speed", 1.0f) * 100);
+        sbCursorSpeed.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvCursorSpeed.setText(progress+"%");
+            }
 
-        final SeekBar sbCursorSize = view.findViewById(R.id.SBCursorSize);
-        sbCursorSize.setValue(preferences.getFloat("cursor_scale", 1.0f) * 100);
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
 
-        final ColorPickerView cpvCursorColor = view.findViewById(R.id.CPVCursorColor);
-        cpvCursorColor.setPalette(0xffffff, 0x000000, 0x651fff, 0xffea00, 0xff9100, 0xf50057, 0x00b0ff, 0x1de9b6);
-        cpvCursorColor.setColor(preferences.getInt("cursor_color", 0xffffff));
-
-        final Spinner sGamepadModel = view.findViewById(R.id.SGamepadModel);
-        loadGamepadModelSpinner(sGamepadModel);
-
-        final Spinner sWineVersion = view.findViewById(R.id.SWineVersion);
-        loadWineVersionSpinner(view, sWineVersion);
-
-        final Spinner sLanguage = view.findViewById(R.id.SLanguage);
-        sLanguage.setSelection(LocaleHelper.getLocaleIndex(context));
-        final int oldLCIndex = sLanguage.getSelectedItemPosition();
-
-        view.findViewById(R.id.BTReinstallSystemFiles).setOnClickListener((v) -> {
-            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_system_files, () -> RootFSInstaller.install((AppCompatActivity)getActivity()));
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
         });
+        sbCursorSpeed.setProgress((int)(preferences.getFloat("cursor_speed", 1.0f) * 100));
 
-        loadGamepadPlayerConfigs(view);
+        final CheckBox cbEnableFileProvider = view.findViewById(R.id.CBEnableFileProvider);
+        final View btHelpFileProvider = view.findViewById(R.id.BTHelpFileProvider);
 
-        if (MainActivity.DEBUG_MODE) {
-            view.findViewById(R.id.LLWineInstallation).setVisibility(View.VISIBLE);
-        }
+        cbEnableFileProvider.setChecked(preferences.getBoolean("enable_file_provider", true));
+        cbEnableFileProvider.setOnClickListener(v -> AppUtils.showToast(context, R.string.take_effect_next_startup));
+        btHelpFileProvider.setOnClickListener(v -> AppUtils.showHelpBox(context, v, R.string.help_file_provider));
+
+        final CheckBox cbOpenInBrowser = view.findViewById(R.id.CBOpenWithAndroidBrowser);
+        cbOpenInBrowser.setChecked(preferences.getBoolean("open_with_android_browser", false));
+
+        final CheckBox cbShareClipboard = view.findViewById(R.id.CBShareAndroidClipboard);
+        cbShareClipboard.setChecked(preferences.getBoolean("share_android_clipboard", false));
+        
+        final CheckBox cbPauseWine = view.findViewById(R.id.CBPauseResumeWine);
+        cbPauseWine.setChecked(preferences.getBoolean("pause_resume_wine", true));
+        
+        final CheckBox cbHighRefreshRate = view.findViewById(R.id.CBHighRefreshRate);
+        cbHighRefreshRate.setChecked(preferences.getBoolean("high_refresh_rate_mode", false));
+
+        final CheckBox cbRemoveLoadingBarWhenBootingGames = view.findViewById(R.id.CBRemoveLoadingBarWhenBootingGames);
+        cbRemoveLoadingBarWhenBootingGames.setChecked(preferences.getBoolean("remove_loading_bar_when_booting_games", false));
+
+        final EditText etDownloadableContentsURL = view.findViewById(R.id.ETDownloadableContentsURL);
+        etDownloadableContentsURL.setText(preferences.getString("downloadable_contents_url", ContentsManager.REMOTE_PROFILES));
+
+        view.findViewById(R.id.BTReInstallImagefs).setOnClickListener(v -> {
+            ContentDialog.confirm(context, R.string.do_you_want_to_reinstall_imagefs, () -> ImageFsInstaller.installFromAssets((MainActivity) getActivity(), null));
+        });
 
         view.findViewById(R.id.BTConfirm).setOnClickListener((v) -> {
             SharedPreferences.Editor editor = preferences.edit();
-            editor.putString("soundfont", sSoundFont.getSelectedItem().toString());
-            editor.putString("box64_version", StringUtils.parseIdentifier(sBox64Version.getSelectedItem()));
+
+            // Save Dark Mode setting
+            editor.putBoolean("dark_mode", cbDarkMode.isChecked());
             editor.putString("box64_preset", Box64PresetManager.getSpinnerSelectedId(sBox64Preset));
-            editor.putBoolean("move_cursor_to_touchpoint", cbMoveCursorToTouchpoint.isChecked());
-            editor.putBoolean("capture_pointer_on_external_mouse", cbCapturePointerOnExternalMouse.isChecked());
-            editor.putFloat("cursor_speed", sbCursorSpeed.getValue() / 100.0f);
-            editor.putFloat("cursor_scale", sbCursorSize.getValue() / 100.0f);
-            editor.putInt("cursor_color", cpvCursorColor.getColor());
+            editor.putString("fexcore_preset", FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset));
+            editor.putBoolean("use_dri3", cbUseDRI3.isChecked());
+            editor.putBoolean("use_xr", cbUseXR.isChecked());
+            editor.putFloat("cursor_speed", sbCursorSpeed.getProgress() / 100.0f);
             editor.putBoolean("enable_wine_debug", cbEnableWineDebug.isChecked());
-            editor.putInt("box64_logs", sBox64Logs.getSelectedItemPosition());
-            editor.putBoolean("save_logs_to_file", cbSaveLogsToFile.isChecked());
-            editor.putBoolean("open_android_browser_from_wine", cbOpenAndroidBrowserFromWine.isChecked());
-            editor.putBoolean("use_android_clipboard_on_wine", cbUseAndroidClipboardOnWine.isChecked());
-            putGamepadPlayerConfigs(view, editor);
+            editor.putBoolean("enable_box64_logs", cbEnableBox64Logs.isChecked());
+            editor.putBoolean("cursor_lock", cbCursorLock.isChecked()); // Save cursor lock state
+            editor.putBoolean("xinput_toggle", cbXinputToggle.isChecked()); // Save xinput toggle state
+            editor.putBoolean("enable_file_provider", cbEnableFileProvider.isChecked());
+            editor.putBoolean("open_with_android_browser", cbOpenInBrowser.isChecked());
+            editor.putBoolean("share_android_clipboard", cbShareClipboard.isChecked());
+            editor.putBoolean("pause_resume_wine", cbPauseWine.isChecked());
+            editor.putBoolean("high_refresh_rate_mode", cbHighRefreshRate.isChecked());
+            editor.putBoolean("remove_loading_bar_when_booting_games", cbRemoveLoadingBarWhenBootingGames.isChecked());
 
-            GamepadHandler.GamepadModel gamepadModel = (GamepadHandler.GamepadModel)sGamepadModel.getAdapter().getItem(sGamepadModel.getSelectedItemPosition());
-            if (gamepadModel.vendorId > 1 && gamepadModel.productId > 1) {
-                editor.putString("gamepad_model", gamepadModel.identifier());
-            }
-            else editor.remove("gamepad_model");
-
-            int newAppThemeId = rgAppTheme.getCheckedRadioButtonId();
-            editor.putInt("app_theme", newAppThemeId == R.id.RBLight ? APP_THEME_LIGHT : APP_THEME_DARK);
-
-            int newLCIndex = sLanguage.getSelectedItemPosition();
-            editor.putInt("lc_index", newLCIndex);
-            boolean restartApp = oldLCIndex != newLCIndex || oldAppThemeId != newAppThemeId;
-
-            int midiInputDevicePosition = sMIDIInputDevice.getSelectedItemPosition();
-            editor.putString("midi_input_device", midiInputDevicePosition == 0 ? "none" :
-                                                 (midiInputDevicePosition == 1 ? "auto" : sMIDIInputDevice.getSelectedItem().toString()));
-
-            String logPath = etLogFile.getText().toString().trim();
-            if (!logPath.equals(defaultLogPath) && !logPath.isEmpty()) {
-                editor.putString("log_file", logPath);
-            }
-            else editor.remove("log_file");
+            editor.putString("downloadable_contents_url", etDownloadableContentsURL.getText().toString());
 
             if (!wineDebugChannels.isEmpty()) {
                 editor.putString("wine_debug_channels", String.join(",", wineDebugChannels));
+            } else if (preferences.contains("wine_debug_channels")) {
+                editor.remove("wine_debug_channels");
             }
             else if (preferences.contains("wine_debug_channels")) editor.remove("wine_debug_channels");
 
+            // Save Big Picture Mode setting
+            editor.putBoolean("enable_big_picture_mode", ((CheckBox) view.findViewById(R.id.CBEnableBigPictureMode)).isChecked());
+            saveCustomApiKeySettings(editor);
+
             if (editor.commit()) {
-                if (!restartApp) {
-                    NavigationView navigationView = getActivity().findViewById(R.id.NavigationView);
-                    navigationView.setCheckedItem(R.id.menu_item_containers);
-                    FragmentManager fragmentManager = getParentFragmentManager();
-                    fragmentManager.beginTransaction()
+                NavigationView navigationView = getActivity().findViewById(R.id.NavigationView);
+                navigationView.setCheckedItem(R.id.main_menu_containers);
+                FragmentManager fragmentManager = getParentFragmentManager();
+                fragmentManager.beginTransaction()
                         .replace(R.id.FLFragmentContainer, new ContainersFragment())
                         .commit();
-                }
-                else AppUtils.restartActivity(getActivity());
             }
         });
+
+
 
         return view;
     }
 
-    private void loadGamepadModelSpinner(Spinner sGamepadModel) {
-        final Context context = getContext();
-        ArrayList<GamepadHandler.GamepadModel> gamepadModels = GamepadHandler.loadGamepadModels(context);
-
-        String selectedModel = preferences.getString("gamepad_model", "");
-        int selectedPosition = 0;
-        for (int i = 0; i < gamepadModels.size(); i++) {
-            if (gamepadModels.get(i).identifier().equals(selectedModel)) {
-                selectedPosition = i;
-                break;
-            }
+    private void updateTheme(boolean isDarkMode) {
+        if (isDarkMode) {
+            getActivity().setTheme(R.style.AppTheme_Dark);
+        } else {
+            getActivity().setTheme(R.style.AppTheme);
         }
 
-        sGamepadModel.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, gamepadModels));
-        sGamepadModel.setSelection(selectedPosition);
+        // Recreate the activity to apply the new theme
+        getActivity().recreate();
     }
 
-    private void loadBox64PresetSpinner(View view, final Spinner sBox64Preset) {
+
+    private void applyDynamicStyles(View view, boolean isDarkMode) {
+
+        Spinner sBox64Preset = view.findViewById(R.id.SBox64Preset);
+        sBox64Preset.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+
+        Spinner sFEXCorePreset = view.findViewById(R.id.SFEXCorePreset);
+        sFEXCorePreset.setPopupBackgroundResource(isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+    }
+
+    private void applyDynamicStylesRecursively(View view) {
+        TextView box64Label = view.findViewById(R.id.TVBox64);
+        applyFieldSetLabelStyle(box64Label, isDarkMode);
+
+        TextView fexcoreLabel = view.findViewById(R.id.TVFEXCore);
+        applyFieldSetLabelStyle(fexcoreLabel, isDarkMode);
+
+        TextView soundLabel = view.findViewById(R.id.TVSound);
+        applyFieldSetLabelStyle(soundLabel, isDarkMode);
+
+        TextView themeLabel = view.findViewById(R.id.TVTheme);
+        applyFieldSetLabelStyle(themeLabel, isDarkMode);
+        themeLabel.setVisibility(View.GONE);
+        if (themeLabel.getParent() instanceof View) {
+            ((View) themeLabel.getParent()).setVisibility(View.GONE);
+        }
+
+        TextView shortcutSettingsLabel = view.findViewById(R.id.TVShortcutSettings);
+        applyFieldSetLabelStyle(shortcutSettingsLabel, isDarkMode);
+
+        TextView bigPictureModeLabel = view.findViewById(R.id.TVBigPictureMode);
+        applyFieldSetLabelStyle(bigPictureModeLabel, isDarkMode);
+
+        TextView tvCustomApiKey = view.findViewById(R.id.TVCustomApiKey);
+        applyFieldSetLabelStyle(tvCustomApiKey, isDarkMode);
+
+//        TextView shortcutSettingsLabel = view.findViewById(R.id.TVShortcutSettings);
+//        applyFieldSetLabelStyle(shortcutSettingsLabel, isDarkMode);
+
+        // Inputs tab labels
+        TextView xServerLabel = view.findViewById(R.id.TVXServer);
+        applyFieldSetLabelStyle(xServerLabel, isDarkMode);
+
+        // Advanced tab labels
+        TextView logsLabel = view.findViewById(R.id.TVLogs);
+        applyFieldSetLabelStyle(logsLabel, isDarkMode);
+
+        TextView experimentalLabel = view.findViewById(R.id.TVExperimental);
+        applyFieldSetLabelStyle(experimentalLabel, isDarkMode);
+
+        TextView ImageFsLabel = view.findViewById(R.id.TVImageFs);
+        applyFieldSetLabelStyle(ImageFsLabel, isDarkMode);
+
+    }
+
+    private void applyFieldSetLabelStyle(TextView textView, boolean isDarkMode) {
+//        Context context = textView.getContext();
+
+        if (isDarkMode) {
+            // Apply dark mode-specific attributes
+            textView.setTextColor(Color.parseColor("#cccccc")); // Set text color to #cccccc
+            textView.setBackgroundResource(R.color.window_background_color_dark); // Set dark background color
+        } else {
+            // Apply light mode-specific attributes (original FieldSetLabel)
+            textView.setTextColor(Color.parseColor("#bdbdbd")); // Set text color to #bdbdbd
+            textView.setBackgroundResource(R.color.window_background_color); // Set light background color
+        }
+    }
+
+    private void initCustomApiKeySettings(View view) {
+        cbEnableCustomApiKey = view.findViewById(R.id.CBEnableCustomApiKey);
+        etCustomApiKey = view.findViewById(R.id.ETCustomApiKey);
+
+        // Load saved preferences
+        boolean isCustomApiKeyEnabled = preferences.getBoolean("enable_custom_api_key", false);
+        String customApiKey = preferences.getString("custom_api_key", "");
+
+        cbEnableCustomApiKey.setChecked(isCustomApiKeyEnabled);
+        etCustomApiKey.setText(customApiKey);
+
+        // Show/hide the EditText based on checkbox state
+        etCustomApiKey.setVisibility(isCustomApiKeyEnabled ? View.VISIBLE : View.GONE);
+
+        cbEnableCustomApiKey.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            etCustomApiKey.setVisibility(isChecked ? View.VISIBLE : View.GONE);
+        });
+
+        // Help button listener to open API documentation
+        view.findViewById(R.id.BTHelpApiKey).setOnClickListener(v -> {
+            String url = "https://www.steamgriddb.com/profile/preferences/api";
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        });
+    }
+
+    private void saveCustomApiKeySettings(SharedPreferences.Editor editor) {
+        // Save custom API key preferences
+        boolean isCustomApiKeyEnabled = cbEnableCustomApiKey.isChecked();
+        editor.putBoolean("enable_custom_api_key", isCustomApiKeyEnabled);
+
+        if (isCustomApiKeyEnabled) {
+            String customApiKey = etCustomApiKey.getText().toString().trim();
+            editor.putString("custom_api_key", customApiKey);
+        } else {
+            editor.remove("custom_api_key");
+        }
+    }
+
+    private void loadBox64PresetSpinners(View view, final Spinner sBox64Preset) {
+        final ArrayMap<String, Spinner> spinners = new ArrayMap<String, Spinner>() {{
+            put("box64", sBox64Preset);
+        }};
         final Context context = getContext();
 
-        Runnable updateSpinner = () -> {
-            Box64PresetManager.loadSpinner(sBox64Preset, preferences.getString("box64_preset", Box64Preset.DEFAULT));
+        Callback<String> updateSpinner = (prefix) -> {
+            Box64PresetManager.loadSpinner(prefix, spinners.get(prefix), preferences.getString(prefix+"_preset", Box64Preset.COMPATIBILITY));
         };
 
-        updateSpinner.run();
+        Callback<String> onAddPreset = (prefix) -> {
+            Box64EditPresetDialog dialog = new Box64EditPresetDialog(context, prefix, null);
+            dialog.setOnConfirmCallback(() -> updateSpinner.call(prefix));
+            dialog.show();
+        };
 
-        view.findViewById(R.id.BTAddBox64Preset).setOnClickListener((v) -> {
-            Box64EditPresetDialog dialog = new Box64EditPresetDialog(context, null);
-            dialog.setOnConfirmCallback(updateSpinner);
+        Callback<String> onEditPreset = (prefix) -> {
+            Box64EditPresetDialog dialog = new Box64EditPresetDialog(context, prefix, Box64PresetManager.getSpinnerSelectedId(spinners.get(prefix)));
+            dialog.setOnConfirmCallback(() -> updateSpinner.call(prefix));
             dialog.show();
+        };
+
+        Callback<String> onDuplicatePreset = (prefix) -> ContentDialog.confirm(context, R.string.do_you_want_to_duplicate_this_preset, () -> {
+            Spinner spinner = spinners.get(prefix);
+            Box64PresetManager.duplicatePreset(prefix, context, Box64PresetManager.getSpinnerSelectedId(spinner));
+            updateSpinner.call(prefix);
+            spinner.setSelection(spinner.getCount()-1);
         });
-        view.findViewById(R.id.BTEditBox64Preset).setOnClickListener((v) -> {
-            Box64EditPresetDialog dialog = new Box64EditPresetDialog(context, Box64PresetManager.getSpinnerSelectedId(sBox64Preset));
-            dialog.setOnConfirmCallback(updateSpinner);
-            dialog.show();
-        });
-        view.findViewById(R.id.BTDuplicateBox64Preset).setOnClickListener((v) -> {
-            Box64PresetManager.duplicatePreset(context, Box64PresetManager.getSpinnerSelectedId(sBox64Preset));
-            updateSpinner.run();
-            sBox64Preset.setSelection(sBox64Preset.getCount()-1);
-        });
-        view.findViewById(R.id.BTRemoveBox64Preset).setOnClickListener((v) -> {
-            final String presetId = Box64PresetManager.getSpinnerSelectedId(sBox64Preset);
+
+        Callback<String> onRemovePreset = (prefix) -> {
+            final String presetId = Box64PresetManager.getSpinnerSelectedId(spinners.get(prefix));
             if (!presetId.startsWith(Box64Preset.CUSTOM)) {
                 AppUtils.showToast(context, R.string.you_cannot_remove_this_preset);
                 return;
             }
             ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_preset, () -> {
-                Box64PresetManager.removePreset(context, presetId);
-                updateSpinner.run();
-            });
-        });
-    }
-
-    private void removeInstalledWine(WineInfo wineInfo, Runnable onSuccess) {
-        final Activity activity = getActivity();
-        ContainerManager manager = new ContainerManager(activity);
-
-        ArrayList<Container> containers = manager.getContainers();
-        for (Container container : containers) {
-            if (container.getWineVersion().equals(wineInfo.identifier())) {
-                AppUtils.showToast(activity, R.string.unable_to_remove_this_wine_version);
-                return;
-            }
-        }
-
-        File installedWineDir = RootFS.find(activity).getInstalledWineDir();
-        File wineDir = new File(wineInfo.path);
-        File containerPatternFile = new File(installedWineDir, "container-pattern-"+wineInfo.fullVersion()+".tzst");
-
-        if (!wineDir.isDirectory() || !containerPatternFile.isFile()) {
-            AppUtils.showToast(activity, R.string.unable_to_remove_this_wine_version);
-            return;
-        }
-
-        preloaderDialog.show(R.string.removing_wine);
-        Executors.newSingleThreadExecutor().execute(() -> {
-            FileUtils.delete(wineDir);
-            FileUtils.delete(containerPatternFile);
-            preloaderDialog.closeOnUiThread();
-            if (onSuccess != null) activity.runOnUiThread(onSuccess);
-        });
-    }
-
-    private void loadWineVersionSpinner(final View view, final Spinner sWineVersion) {
-        Context context = getContext();
-        final ArrayList<WineInfo> wineInfos = WineInstaller.getInstalledWineInfos(context);
-        sWineVersion.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, wineInfos));
-
-        view.findViewById(R.id.BTInstallWine).setOnClickListener((v) -> selectWineFileForInstall());
-        view.findViewById(R.id.BTRemoveWine).setOnClickListener((v) -> {
-            WineInfo wineInfo = wineInfos.get(sWineVersion.getSelectedItemPosition());
-            if (wineInfo != WineInfo.MAIN_WINE_INFO) {
-                ContentDialog.confirm(getContext(), R.string.do_you_want_to_remove_this_wine_version, () -> {
-                    removeInstalledWine(wineInfo, () -> loadWineVersionSpinner(view, sWineVersion));
-                });
-            }
-        });
-    }
-
-    private void selectWineFileForInstall() {
-        final Context context = getContext();
-        selectWineFileCallback = (uri) -> {
-            preloaderDialog.show(R.string.preparing_installation);
-            WineInstaller.extractWineFileForInstallAsync(context, uri, (wineDir) -> {
-                if (wineDir != null) {
-                    WineInstaller.findWineVersionAsync(context, wineDir, (wineInfo) -> {
-                        preloaderDialog.closeOnUiThread();
-                        if (wineInfo == null) {
-                            AppUtils.showToast(context, R.string.unable_to_install_wine);
-                            return;
-                        }
-
-                        getActivity().runOnUiThread(() -> showWineInstallDialog(wineInfo));
-                    });
-                }
-                else {
-                    AppUtils.showToast(context, R.string.unable_to_install_wine);
-                    preloaderDialog.closeOnUiThread();
-                }
+                Box64PresetManager.removePreset(prefix, context, presetId);
+                updateSpinner.call(prefix);
             });
         };
 
+        Callback<String> onExportPreset = (String prefix) -> {
+            final String presetId = Box64PresetManager.getSpinnerSelectedId(spinners.get(prefix));
+            if (!presetId.startsWith(Box64Preset.CUSTOM)) {
+                AppUtils.showToast(context, "Cannot export this preset");
+                return;
+            }
+            getActivity().runOnUiThread(() ->  {
+                Box64PresetManager.exportPreset(prefix, context, presetId);
+            });
+        };
+
+        Callback<String> onImportPreset = (String prefix) -> {
+          openFile(REQUEST_CODE_IMPORT_BOX64_PRESET);
+        };
+
+        updateSpinner.call("box64");
+
+        view.findViewById(R.id.BTAddBox64Preset).setOnClickListener((v) -> onAddPreset.call("box64"));
+        view.findViewById(R.id.BTEditBox64Preset).setOnClickListener((v) -> onEditPreset.call("box64"));
+        view.findViewById(R.id.BTDuplicateBox64Preset).setOnClickListener((v) -> onDuplicatePreset.call("box64"));
+        view.findViewById(R.id.BTRemoveBox64Preset).setOnClickListener((v) -> onRemovePreset.call("box64"));
+        view.findViewById(R.id.BTExportBox64Preset).setOnClickListener((v) -> onExportPreset.call("box64"));
+        view.findViewById(R.id.BTImportBox64Preset).setOnClickListener((v) -> onImportPreset.call("box64"));
+    }
+
+    private void loadFEXCorePresetSpinners(View view, final Spinner sFEXCorePreset) {
+        final Context context = getContext();
+
+        Callback<String> updateSpinner = (String prefix) -> {
+            FEXCorePresetManager.loadSpinner(sFEXCorePreset, preferences.getString(prefix + "_preset", FEXCorePreset.COMPATIBILITY));
+        };
+
+        Callback<String> onAddPreset = (String prefix) -> {
+            FEXCoreEditPresetDialog dialog = new FEXCoreEditPresetDialog(context, null);
+            dialog.setOnConfirmCallback(() -> updateSpinner.call(prefix));
+            dialog.show();
+        };
+
+        Callback<String> onEditPreset = (prefix) -> {
+            FEXCoreEditPresetDialog dialog = new FEXCoreEditPresetDialog(context, FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset));
+            dialog.setOnConfirmCallback(() -> updateSpinner.call(prefix));
+            dialog.show();
+        };
+
+        Callback<String> onDuplicatePreset = (String prefix) -> ContentDialog.confirm(context, R.string.do_you_want_to_duplicate_this_preset, () -> {
+            FEXCorePresetManager.duplicatePreset(context, FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset));
+            updateSpinner.call(prefix);
+            sFEXCorePreset.setSelection(sFEXCorePreset.getCount()-1);
+        });
+
+        Callback<String> onRemovePreset = (prefix) -> {
+            final String presetId = FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset);
+            if (!presetId.startsWith(FEXCorePreset.CUSTOM)) {
+                AppUtils.showToast(context, R.string.you_cannot_remove_this_preset);
+                return;
+            }
+            ContentDialog.confirm(context, R.string.do_you_want_to_remove_this_preset, () -> {
+                FEXCorePresetManager.removePreset(context, presetId);
+                updateSpinner.call(prefix);
+            });
+        };
+
+        Callback<String> onExportPreset = (String prefix) -> {
+            final String presetId = FEXCorePresetManager.getSpinnerSelectedId(sFEXCorePreset);
+            if (!presetId.startsWith(FEXCorePreset.CUSTOM)) {
+                AppUtils.showToast(context, "Cannot export this preset");
+                return;
+            }
+            getActivity().runOnUiThread(() ->  {
+                FEXCorePresetManager.exportPreset(context, presetId);
+            });
+        };
+
+        Callback<String> onImportPreset = (String prefix) -> {
+            openFile(REQUEST_CODE_IMPORT_FEXCORE_PRESET);
+        };
+
+        updateSpinner.call("fexcore");
+
+        view.findViewById(R.id.BTAddFEXCorePreset).setOnClickListener((v) -> onAddPreset.call("fexcore"));
+        view.findViewById(R.id.BTEditFEXCorePreset).setOnClickListener((v) -> onEditPreset.call("fexcore"));
+        view.findViewById(R.id.BTDuplicateFEXCorePreset).setOnClickListener((v) -> onDuplicatePreset.call("fexcore"));
+        view.findViewById(R.id.BTRemoveFEXCorePreset).setOnClickListener((v) -> onRemovePreset.call("fexcore"));
+        view.findViewById(R.id.BTExportFEXCorePreset).setOnClickListener((v) -> onExportPreset.call("fexcore"));
+        view.findViewById(R.id.BTImportFEXCorePreset).setOnClickListener((v) -> onImportPreset.call("fexcore"));
+    }
+
+
+    private void openFile(int requestCode) {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
         intent.addCategory(Intent.CATEGORY_OPENABLE);
         intent.setType("*/*");
-        getActivity().startActivityFromFragment(this, intent, MainActivity.OPEN_FILE_REQUEST_CODE);
+
+        // Start activity for result based on the provided request code
+        getActivity().startActivityFromFragment(this, intent, requestCode);
     }
 
-    private void installWine(final WineInfo wineInfo) {
-        Context context = getContext();
-        File installedWineDir = RootFS.find(context).getInstalledWineDir();
-
-        File wineDir = new File(installedWineDir, wineInfo.identifier());
-        if (wineDir.isDirectory()) {
-            AppUtils.showToast(context, R.string.unable_to_install_wine);
-            return;
-        }
-
-        Intent intent = new Intent(context, XServerDisplayActivity.class);
-        intent.putExtra("generate_wineprefix", true);
-        intent.putExtra("wine_info", wineInfo);
-        context.startActivity(intent);
-    }
-
-    private void showWineInstallDialog(final WineInfo wineInfo) {
-        Context context = getContext();
-        ContentDialog dialog = new ContentDialog(context, R.layout.wine_install_dialog);
-        dialog.setCancelable(false);
-        dialog.setCanceledOnTouchOutside(false);
-        dialog.setTitle(R.string.install_wine);
-        dialog.setIcon(R.drawable.icon_wine);
-
-        EditText etVersion = dialog.findViewById(R.id.ETVersion);
-        etVersion.setText("Wine "+wineInfo.version+(wineInfo.subversion != null ? " ("+wineInfo.subversion+")" : ""));
-
-        final EditText etSize = dialog.findViewById(R.id.ETSize);
-        final AtomicLong totalSizeRef = new AtomicLong();
-        FileUtils.getSizeAsync(new File(wineInfo.path), (size) -> {
-            totalSizeRef.addAndGet(size);
-            etSize.post(() -> etSize.setText(StringUtils.formatBytes(totalSizeRef.get())));
-        });
-
-        dialog.setOnConfirmCallback(() -> installWine(wineInfo));
-        dialog.show();
-    }
 
     private void loadWineDebugChannels(final View view, final ArrayList<String> debugChannels) {
         final Context context = getContext();
@@ -434,7 +644,7 @@ public class SettingsFragment extends Fragment {
             catch (JSONException e) {}
 
             final String[] items = ArrayUtils.toStringArray(jsonArray);
-            ContentDialog.showSelectionList(context, R.string.wine_debug_channel, items, true, (selectedPositions) -> {
+            ContentDialog.showMultipleChoiceList(context, R.string.wine_debug_channel, items, (selectedPositions) -> {
                 for (int selectedPosition : selectedPositions) if (!debugChannels.contains(items[selectedPosition])) debugChannels.add(items[selectedPosition]);
                 loadWineDebugChannels(view, debugChannels);
             });
@@ -462,81 +672,133 @@ public class SettingsFragment extends Fragment {
         }
     }
 
-    public static void resetBox64Version(AppCompatActivity activity) {
+    public static void resetEmulatorsVersion(AppCompatActivity activity) {
         SharedPreferences preferences = PreferenceManager.getDefaultSharedPreferences(activity);
         SharedPreferences.Editor editor = preferences.edit();
-        editor.putString("box64_version", DefaultVersion.BOX64);
         editor.remove("current_box64_version");
+        editor.remove("current_wowbox64_version");
+        editor.remove("current_fexcore_version");
         editor.apply();
     }
 
-    private void loadMIDIInputDeviceSpinner(final Spinner sMIDIInputDevice, final String selectedValue) {
-        Context context = getContext();
-        MidiManager mm = (MidiManager)context.getSystemService(Context.MIDI_SERVICE);
-        MidiDeviceInfo[] infos = mm.getDevices();
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
 
-        if (!midiDeviceCallbackRegistered) {
-            midiDeviceCallbackRegistered = true;
-            mm.registerDeviceCallback(new MidiManager.DeviceCallback() {
-                @Override
-                public void onDeviceAdded(MidiDeviceInfo device) {
-                    loadMIDIInputDeviceSpinner(sMIDIInputDevice, selectedValue);
+        if (resultCode == Activity.RESULT_OK && data != null) {
+            Uri uri = data.getData();
+
+            if (uri != null) {
+
+                SharedPreferences.Editor editor = preferences.edit();
+
+                switch (requestCode) {
+
+                    case REQUEST_CODE_WINLATOR_PATH:
+                        // Save the selected URI as a string in SharedPreferences
+                        editor.putString("winlator_path_uri", uri.toString());
+                        editor.apply();
+
+                        // Take persistable URI permission
+                        try {
+                            // Take persistable URI permission with explicit flags
+                            requireContext().getContentResolver().takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            );
+                        } catch (SecurityException e) {
+                            AppUtils.showToast(getContext(), "Unable to take persistable permissions: " + e.getMessage());
+                        }
+
+                        // Convert the URI to an absolute path and display it
+                        String fullPath = FileUtils.getFilePathFromUri(getContext(), uri);
+
+                        // Update the TextView with the absolute path or URI string if conversion fails
+                        TextView tvWinlatorPath = getView().findViewById(R.id.TVWinlatorPath);
+                        tvWinlatorPath.setText(fullPath != null ? fullPath : uri.toString());
+                        break;
+
+                    case REQUEST_CODE_SHORTCUT_EXPORT_PATH:
+                        editor.putString("shortcuts_export_path_uri", uri.toString());
+                        editor.apply();
+
+                        // Take persistable URI permission
+                        try {
+                            // Take persistable URI permission with explicit flags
+                            requireContext().getContentResolver().takePersistableUriPermission(
+                                    uri,
+                                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                            );
+                        } catch (SecurityException e) {
+                            AppUtils.showToast(getContext(), "Unable to take persistable permissions: " + e.getMessage());
+                        }
+
+                        // Convert the URI to an absolute path and display it
+                        String path = FileUtils.getFilePathFromUri(getContext(), uri);
+
+                        // Update the TextView with the absolute path or URI string if conversion fails
+                        TextView tvShortcutExportPath = getView().findViewById(R.id.TVShortcutExportPath);
+                        tvShortcutExportPath.setText(path != null ? path : uri.toString());
+
+
+
+                    // Case for installing a SoundFont
+                    case REQUEST_CODE_INSTALL_SOUNDFONT:
+                        if (installSoundFontCallback != null) {
+                            try {
+                                installSoundFontCallback.call(uri);
+                            } catch (Exception e) {
+                                AppUtils.showToast(getContext(), R.string.unable_to_install_soundfont);
+                            } finally {
+                                installSoundFontCallback = null;
+                            }
+                        }
+                        break;
+
+                    case REQUEST_CODE_IMPORT_BOX64_PRESET:
+                        try {
+                            Spinner sBox64Preset = getView().findViewById(R.id.SBox64Preset);
+                            InputStream is = getActivity().getContentResolver().openInputStream(uri);
+                            Box64PresetManager.importPreset("box64", getContext(), is);
+                            Box64PresetManager.loadSpinner("box64", sBox64Preset, preferences.getString("box64_preset", Box64Preset.COMPATIBILITY));
+                        } catch (FileNotFoundException e) {
+                        }
+                        break;
+                    case REQUEST_CODE_IMPORT_FEXCORE_PRESET:
+                        try {
+                            Spinner sFEXCorePreset = getView().findViewById(R.id.SFEXCorePreset);
+                            InputStream is = getActivity().getContentResolver().openInputStream(uri);
+                            FEXCorePresetManager.importPreset( getContext(), is);
+                            FEXCorePresetManager.loadSpinner(sFEXCorePreset, preferences.getString("fexcore_preset", FEXCorePreset.INTERMEDIATE));
+                        } catch (FileNotFoundException e) {
+                        }
+                        break;
+                        // Add future cases here for other request codes...
+                    default:
+                        break;
                 }
-
-                @Override
-                public void onDeviceRemoved(MidiDeviceInfo device) {
-                    loadMIDIInputDeviceSpinner(sMIDIInputDevice, selectedValue);
-                }
-            }, new Handler(Looper.getMainLooper()));
-        }
-
-        ArrayList<String> items = new ArrayList<>();
-        items.add(context.getString(R.string.none));
-        items.add(context.getString(R.string.auto));
-
-        for (MidiDeviceInfo info : infos) {
-            if (info.getOutputPortCount() > 0) {
-                Bundle properties = info.getProperties();
-                items.add(properties.getString(MidiDeviceInfo.PROPERTY_NAME));
             }
-        }
-
-        sMIDIInputDevice.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item, items));
-
-        if (selectedValue.equals("none")) {
-            sMIDIInputDevice.setSelection(0, false);
-        }
-        else if (selectedValue.equals("auto") || !AppUtils.setSpinnerSelectionFromValue(sMIDIInputDevice, selectedValue)) {
-            sMIDIInputDevice.setSelection(1, false);
         }
     }
 
-    private void loadGamepadPlayerConfigs(View view) {
-        LinearLayout container = view.findViewById(R.id.LLGamepadPlayer);
-        view.findViewById(R.id.BTResetGamepadPlayerConfigs).setOnClickListener((v) -> {
-            ContentDialog.confirm(v.getContext(), R.string.do_you_want_to_reset_configurations, () -> {
-                for (int i = 0; i < container.getChildCount(); i++) container.getChildAt(i).setTag("");
-            });
-        });
-
-        for (int i = 0; i < container.getChildCount(); i++) {
-            final View child = container.getChildAt(i);
-            child.setTag(preferences.getString("gamepad_player"+i, ""));
-            final byte slot = (byte)i;
-            child.setOnClickListener((v) -> (new GamepadPlayerConfigDialog(child, slot)).show());
-        }
-    }
-
-    private void putGamepadPlayerConfigs(View view, SharedPreferences.Editor editor) {
-        LinearLayout container = view.findViewById(R.id.LLGamepadPlayer);
-        for (int i = 0; i < container.getChildCount(); i++) {
-            View child = container.getChildAt(i);
-            String config = child.getTag().toString();
-            String key = "gamepad_player"+i;
-            if (!config.isEmpty()) {
-                editor.putString(key, child.getTag().toString());
+    private void moveFiles(File sourceDir, File targetDir) throws IOException {
+        File[] files = sourceDir.listFiles();
+        if (files != null) {
+            for (File file : files) {
+                File targetFile = new File(targetDir, file.getName());
+                if (file.isDirectory()) {
+                    if (!targetFile.exists()) {
+                        targetFile.mkdirs();
+                    }
+                    moveFiles(file, targetFile); // Recursively move directory contents
+                } else {
+                    if (!file.renameTo(targetFile)) {
+                        throw new IOException("Failed to move file: " + file.getAbsolutePath());
+                    }
+                }
             }
-            else editor.remove(key);
         }
+        // Clear the temporary directory after moving
+        FileUtils.clear(sourceDir);
     }
 }

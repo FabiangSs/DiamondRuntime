@@ -1,6 +1,6 @@
 package dev.lcehub.emerald.sysvshm;
 
-import dev.lcehub.emerald.xconnector.ConnectedClient;
+import dev.lcehub.emerald.xconnector.Client;
 import dev.lcehub.emerald.xconnector.RequestHandler;
 import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
@@ -10,7 +10,7 @@ import java.io.IOException;
 
 public class SysVSHMRequestHandler implements RequestHandler {
     @Override
-    public boolean handleRequest(ConnectedClient client) throws IOException {
+    public boolean handleRequest(Client client) throws IOException {
         SysVSharedMemory sysVSharedMemory = (SysVSharedMemory)client.getTag();
         XInputStream inputStream = client.getInputStream();
         XOutputStream outputStream = client.getOutputStream();

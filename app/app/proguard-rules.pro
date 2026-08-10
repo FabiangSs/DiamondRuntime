@@ -16,4 +16,9 @@
 #   public *;
 #}
 
--dontobfuscate
+#neo: JNI keeps native-bound class/field/method names alive. the zstd native library resolves fields like srcPos/dstPos by name via GetFieldID.
+-keep class com.github.luben.zstd.** { *; }
+-keepclassmembers class com.github.luben.zstd.** { *; }
+-dontwarn com.github.luben.zstd.**
+
+#-dontobfuscate

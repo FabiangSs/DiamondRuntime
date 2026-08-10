@@ -2,13 +2,17 @@ package dev.lcehub.emerald;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Environment;
 
 import androidx.appcompat.app.AppCompatActivity;
 
 import dev.lcehub.emerald.container.Container;
 import dev.lcehub.emerald.container.ContainerManager;
+import dev.lcehub.emerald.contents.ContentsManager;
 import dev.lcehub.emerald.core.AppUtils;
-import dev.lcehub.emerald.xenvironment.RootFSInstaller;
+import dev.lcehub.emerald.core.DefaultVersion;
+import dev.lcehub.emerald.core.WineInfo;
+import dev.lcehub.emerald.xenvironment.ImageFsInstaller;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -38,7 +42,9 @@ public class LauncherBridgeActivity extends AppCompatActivity {
         }
 
         AppUtils.hideSystemUI(this);
-        RootFSInstaller.installIfNeeded(this, this::ensureContainer);
+        if (!ImageFsInstaller.installIfNeeded(this, this::ensureContainer)) {
+            ensureContainer();
+        }
     }
 
     private void ensureContainer() {
@@ -53,6 +59,10 @@ public class LauncherBridgeActivity extends AppCompatActivity {
 
         if (container != null) {
             updateDrives(container);
+            if (container.getAudioDriver().equals("alsa")) {
+                container.setAudioDriver(Container.DEFAULT_AUDIO_DRIVER);
+                container.saveData();
+            }
             onContainerReady(container);
             return;
         }
@@ -60,8 +70,12 @@ public class LauncherBridgeActivity extends AppCompatActivity {
         try {
             JSONObject data = new JSONObject();
             data.put("name", CONTAINER_NAME);
+            data.put("wineVersion", WineInfo.MAIN_WINE_VERSION.identifier());
+            data.put("box64Version", DefaultVersion.WOWBOX64);
+            data.put("fexcoreVersion", DefaultVersion.FEXCORE);
             data.put("drives", getDrivesString());
-            manager.createContainerAsync(data, this::onContainerCreated);
+            ContentsManager contentsManager = new ContentsManager(this);
+            manager.createContainerAsync(data, contentsManager, this::onContainerCreated);
         }
         catch (JSONException e) {
             AppUtils.showToast(this, "Failed to create container");
@@ -79,27 +93,22 @@ public class LauncherBridgeActivity extends AppCompatActivity {
     }
 
     private void onContainerReady(Container container) {
-        switch (action) {
-            case ACTION_PLAY: {
-                Intent intent = new Intent(this, XServerDisplayActivity.class);
-                intent.putExtra("container_id", container.id);
-                intent.putExtra("exec_path", instancePath+"/"+GAME_EXECUTABLE);
-                startActivity(intent);
-                break;
-            }
-            case ACTION_OPEN: {
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.putExtra("container_id", container.id);
-                intent.putExtra("start_path", instancePath);
-                startActivity(intent);
-                break;
-            }
-            case ACTION_SETTINGS: {
-                Intent intent = new Intent(this, MainActivity.class);
-                intent.putExtra("container_settings_id", container.id);
-                startActivity(intent);
-                break;
-            }
+        if (ACTION_PLAY.equals(action)) {
+            Intent intent = new Intent(this, XServerDisplayActivity.class);
+            intent.putExtra("container_id", container.id);
+            intent.putExtra("exec_path", instancePath + "/" + GAME_EXECUTABLE);
+            startActivity(intent);
+        }
+        else if (ACTION_OPEN.equals(action)) {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("container_id", container.id);
+            intent.putExtra("start_path", instancePath);
+            startActivity(intent);
+        }
+        else if (ACTION_SETTINGS.equals(action)) {
+            Intent intent = new Intent(this, MainActivity.class);
+            intent.putExtra("container_settings_id", container.id);
+            startActivity(intent);
         }
         finish();
     }
@@ -113,6 +122,6 @@ public class LauncherBridgeActivity extends AppCompatActivity {
     }
 
     private String getDrivesString() {
-        return "D:"+AppUtils.DIRECTORY_DOWNLOADS+"E:"+instancePath;
+        return "D:" + Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS) + "E:" + instancePath;
     }
 }

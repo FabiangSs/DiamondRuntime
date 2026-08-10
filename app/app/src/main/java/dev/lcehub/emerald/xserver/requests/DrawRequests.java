@@ -7,14 +7,11 @@ import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
 import dev.lcehub.emerald.xserver.Drawable;
 import dev.lcehub.emerald.xserver.GraphicsContext;
-import dev.lcehub.emerald.xserver.Window;
 import dev.lcehub.emerald.xserver.XClient;
 import dev.lcehub.emerald.xserver.errors.BadDrawable;
 import dev.lcehub.emerald.xserver.errors.BadGraphicsContext;
 import dev.lcehub.emerald.xserver.errors.BadMatch;
-import dev.lcehub.emerald.xserver.errors.BadWindow;
 import dev.lcehub.emerald.xserver.errors.XRequestError;
-import dev.lcehub.emerald.xserver.events.Expose;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,7 +34,7 @@ public abstract class DrawRequests {
         int length = client.getRemainingRequestLength();
         ByteBuffer data = inputStream.readByteBuffer(length);
 
-        Drawable drawable = client.xServer.drawableManager.getDrawable(drawableId);
+        Drawable drawable =  client.xServer.drawableManager.getDrawable(drawableId);
         if (drawable == null) throw new BadDrawable(drawableId);
 
         GraphicsContext graphicsContext = client.xServer.graphicsContextManager.getGraphicsContext(gcId);
@@ -96,24 +93,6 @@ public abstract class DrawRequests {
         }
     }
 
-    public static void clearArea(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
-        boolean exposures = client.getRequestData() == 1;
-        int windowId = inputStream.readInt();
-        short x = inputStream.readShort();
-        short y = inputStream.readShort();
-        short width = inputStream.readShort();
-        short height = inputStream.readShort();
-
-        Window window = client.xServer.windowManager.getWindow(windowId);
-        if (window == null) throw new BadWindow(windowId);
-        if (!window.isInputOutput()) throw new BadMatch();
-
-        Drawable drawable = window.getContent();
-        drawable.fillRect(x, y, width, height, 0x000000);
-
-        if (exposures) window.sendEvent(new Expose(window));
-    }
-
     public static void copyArea(XClient client, XInputStream inputStream, XOutputStream outputStream) throws XRequestError {
         int srcDrawableId = inputStream.readInt();
         int dstDrawableId = inputStream.readInt();
@@ -125,11 +104,18 @@ public abstract class DrawRequests {
         short width = inputStream.readShort();
         short height = inputStream.readShort();
 
-        Drawable srcDrawable =  client.xServer.drawableManager.getDrawable(srcDrawableId);
+        Drawable srcDrawable = client.xServer.drawableManager.getDrawable(srcDrawableId);
         if (srcDrawable == null) throw new BadDrawable(srcDrawableId);
+        if (srcDrawable.getData() == null) {
+            throw new IllegalStateException("srcDrawable has null data!");
+        }
 
-        Drawable dstDrawable =  client.xServer.drawableManager.getDrawable(dstDrawableId);
+        Drawable dstDrawable = client.xServer.drawableManager.getDrawable(dstDrawableId);
         if (dstDrawable == null) throw new BadDrawable(dstDrawableId);
+        if (dstDrawable.getData() == null) {
+            throw new IllegalStateException("dstDrawable has null data!");
+        }
+
 
         GraphicsContext graphicsContext =  client.xServer.graphicsContextManager.getGraphicsContext(gcId);
         if (graphicsContext == null) throw new BadGraphicsContext(gcId);

@@ -1,69 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="200dp">
+    android:layout_height="wrap_content"
+    android:fillViewport="true">
 
     <LinearLayout
-        android:layout_width="300dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/version" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <Spinner
-                style="@style/ComboBox"
-                android:id="@+id/SVersion"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1" />
-
-            <LinearLayout
-                style="@style/Toolbox"
-                android:id="@+id/WineD3DToolbox">
-
-                <ImageButton
-                    style="@style/ListMenuButton"
-                    android:src="@drawable/icon_install"
-                    android:tag="install" />
-
-                <ImageButton
-                    style="@style/ListMenuButton"
-                    android:layout_marginRight="0dp"
-                    android:src="@drawable/icon_remove"
-                    android:tag="remove" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/ddraw_wrapper" />
+            android:text="@string/csmt" />
 
         <Spinner
             style="@style/ComboBox"
             android:layout_width="match_parent"
-            android:id="@+id/SDDrawWrapper"
-            android:entries="@array/ddraw_wrapper_entries" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/renderer" />
-
-        <Spinner
-            style="@style/ComboBox"
-            android:layout_width="match_parent"
-            android:id="@+id/SRenderer"
-            android:entries="@array/wined3d_renderer_entries" />
+            android:id="@+id/SCSMT"
+            android:spinnerMode="dropdown"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -72,18 +27,9 @@
 
         <Spinner
             style="@style/ComboBox"
+            android:layout_width="match_parent"
             android:id="@+id/SGPUName"
-            android:layout_width="match_parent" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/offscreen_rendering_mode" />
-
-        <Spinner
-            style="@style/ComboBox"
-            android:id="@+id/SOffscreenRenderingMode"
-            android:layout_width="match_parent" />
+            android:spinnerMode="dropdown"/>
 
         <TextView
             android:layout_width="wrap_content"
@@ -92,21 +38,43 @@
 
         <Spinner
             style="@style/ComboBox"
-            android:id="@+id/SVideoMemorySize"
             android:layout_width="match_parent"
-            android:entries="@array/video_memory_size_entries" />
+            android:id="@+id/SVideoMemorySize"
+            android:entries="@array/video_memory_size_entries"
+            android:spinnerMode="dropdown"/>
 
-        <CheckBox
-            android:id="@+id/CBCSMT"
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/enable_csmt"
-            android:layout_marginTop="8dp" />
+            android:text="@string/strict_shader_math" />
 
-        <CheckBox
-            android:id="@+id/CBStrictShaderMath"
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SStrictShaderMath"
+            android:spinnerMode="dropdown" />
+
+        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/enable_strict_shader_math" />
+            android:text="@string/offscreen_rendering_mode" />
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SOffscreenRenderingMode"
+            android:spinnerMode="dropdown" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Renderer" />
+
+        <Spinner
+            style="@style/ComboBox"
+            android:layout_width="match_parent"
+            android:id="@+id/SRenderer"
+            android:spinnerMode="dropdown" />
+
     </LinearLayout>
 </ScrollView>

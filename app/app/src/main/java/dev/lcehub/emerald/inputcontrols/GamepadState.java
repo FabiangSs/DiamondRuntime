@@ -1,5 +1,7 @@
 package dev.lcehub.emerald.inputcontrols;
 
+import java.nio.ByteBuffer;
+
 public class GamepadState {
     public float thumbLX = 0;
     public float thumbLY = 0;
@@ -23,13 +25,18 @@ public class GamepadState {
         return povHat;
     }
 
+    public void writeTo(ByteBuffer buffer) {
+        buffer.putShort(buttons);
+        buffer.put(getPovHat());
+        buffer.putShort((short)(thumbLX * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbLY * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbRX * Short.MAX_VALUE));
+        buffer.putShort((short)(thumbRY * Short.MAX_VALUE));
+        buffer.put((byte)(triggerL * 255));
+        buffer.put((byte)(triggerR * 255));
+    }
+
     public void setPressed(int buttonIdx, boolean pressed) {
-        if (buttonIdx == ExternalController.IDX_BUTTON_L2) {
-            triggerL = pressed ? 1.0f : 0.0f;
-        }
-        else if (buttonIdx == ExternalController.IDX_BUTTON_R2) {
-            triggerR = pressed ? 1.0f : 0.0f;
-        }
         int flag = 1<<buttonIdx;
         if (pressed) {
             buttons |= flag;

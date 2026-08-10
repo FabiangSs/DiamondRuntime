@@ -13,17 +13,14 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.widget.AppCompatTextView;
 import androidx.appcompat.widget.ListPopupWindow;
 
-import dev.lcehub.emerald.R;
 import dev.lcehub.emerald.core.UnitUtils;
 
-import java.util.ArrayList;
 import java.util.Collections;
 
 public class MultiSelectionComboBox extends AppCompatTextView {
     private String[] items;
     private final ArraySet<String> selectedItemSet = new ArraySet<>();
-    private String displayText;
-    private int popupWindowWidth = 260;
+    private String text = "";
 
     public MultiSelectionComboBox(@NonNull Context context) {
         this(context, null);
@@ -37,49 +34,48 @@ public class MultiSelectionComboBox extends AppCompatTextView {
         super(context, attrs, defStyleAttr);
     }
 
-    public String getDisplayText() {
-        return displayText;
-    }
-
-    public void setDisplayText(String displayText) {
-        this.displayText = displayText;
-    }
-
-    public int getPopupWindowWidth() {
-        return popupWindowWidth;
-    }
-
-    public void setPopupWindowWidth(int popupWindowWidth) {
-        this.popupWindowWidth = popupWindowWidth;
-    }
-
     public String[] getItems() {
         return items;
     }
 
     public void setItems(String[] items) {
         this.items = items;
-        updateDisplayText();
+        setText(getSelectedItemsAsString());
     }
 
-    private void updateDisplayText() {
-        if (displayText != null && !displayText.isEmpty()) {
-            String itemCount = String.valueOf(items.length);
-            String selectedItemCount = String.valueOf(selectedItemSet.size());
-            setText(displayText.replaceFirst("%d", selectedItemCount).replaceFirst("%d", itemCount));
-        }
-        else setText(getSelectedItemsAsString());
+    public void setItems(String[] items, String text) {
+        this.items = items;
+        this.text = text;
+        if (!text.isEmpty())
+            setText(items.length + " " + text);
+        else
+            setText(getSelectedItemsAsString());
     }
+
 
     public void setSelectedItems(String[] selectedItems) {
+        selectedItemSet.clear();
         Collections.addAll(selectedItemSet, selectedItems);
-        updateDisplayText();
+        if (!text.isEmpty())
+            setText(selectedItemSet.size() + " " + text);
+        else
+            setText(getSelectedItemsAsString());
     }
 
-    public String[] getSelectedItems() {
-        ArrayList<String> selectedItems = new ArrayList<>();
-        for (String item : items) if (selectedItemSet.contains(item)) selectedItems.add(item);
-        return selectedItems.toArray(new String[0]);
+    public void setSelectedItem(String item) {
+        if (selectedItemSet.contains(item)) selectedItemSet.add(item);
+        if (!text.isEmpty())
+            setText(selectedItemSet.size() + " " + text);
+        else
+            setText(getSelectedItemsAsString());
+    }
+
+    public void unsetSelectedItem(String item) {
+        if (selectedItemSet.contains(item)) selectedItemSet.remove(item);
+        if (!text.isEmpty())
+            setText(selectedItemSet.size() + " " + text);
+        else
+            setText(getSelectedItemsAsString());
     }
 
     public String getSelectedItemsAsString() {
@@ -88,16 +84,25 @@ public class MultiSelectionComboBox extends AppCompatTextView {
         return result;
     }
 
+    public String getUnSelectedItemsAsString() {
+        String result = "";
+        for (String item : items) if (!selectedItemSet.contains(item)) result += (!result.isEmpty() ? "," : "")+item;
+        return result;
+    }
+
     @Override
     public boolean performClick() {
         if (items == null || items.length == 0) return true;
-        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), R.layout.simple_list_item_multiple_choice, items) {
+        final ArrayAdapter<String> adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_multiple_choice, items) {
             @NonNull
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                 CheckedTextView checkedTextView = (CheckedTextView)super.getView(position, convertView, parent);
                 checkedTextView.setChecked(selectedItemSet.contains(items[position]));
-                updateDisplayText();
+                if (!text.isEmpty())
+                    setText(selectedItemSet.size() + " " + text);
+                else
+                    setText(getSelectedItemsAsString());
                 return checkedTextView;
             }
         };
@@ -105,7 +110,7 @@ public class MultiSelectionComboBox extends AppCompatTextView {
         ListPopupWindow popupWindow = new ListPopupWindow(getContext());
         popupWindow.setAdapter(adapter);
         popupWindow.setAnchorView(this);
-        popupWindow.setWidth((int)UnitUtils.dpToPx(popupWindowWidth));
+        popupWindow.setWidth((int)UnitUtils.dpToPx(260));
 
         popupWindow.setOnItemClickListener((parent, view, position, id) -> {
             String item = items[position];
@@ -113,6 +118,7 @@ public class MultiSelectionComboBox extends AppCompatTextView {
                 selectedItemSet.remove(item);
             }
             else selectedItemSet.add(item);
+
             adapter.notifyDataSetChanged();
         });
 

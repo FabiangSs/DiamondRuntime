@@ -2,7 +2,7 @@ package dev.lcehub.emerald.xserver.events;
 
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
-import dev.lcehub.emerald.core.Bitmask;
+import dev.lcehub.emerald.xserver.Bitmask;
 import dev.lcehub.emerald.xserver.Window;
 
 import java.io.IOException;

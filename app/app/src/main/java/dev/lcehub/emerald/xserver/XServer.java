@@ -1,18 +1,16 @@
 package dev.lcehub.emerald.xserver;
 
-import dev.lcehub.emerald.XServerDisplayActivity;
-import dev.lcehub.emerald.contentdialog.DebugDialog;
+import android.util.SparseArray;
+
 import dev.lcehub.emerald.core.CursorLocker;
-import dev.lcehub.emerald.renderer.GLRenderer;
+import dev.lcehub.emerald.renderer.VulkanRenderer;
 import dev.lcehub.emerald.winhandler.WinHandler;
 import dev.lcehub.emerald.xserver.extensions.BigReqExtension;
 import dev.lcehub.emerald.xserver.extensions.DRI3Extension;
 import dev.lcehub.emerald.xserver.extensions.Extension;
-import dev.lcehub.emerald.xserver.extensions.GLXExtension;
 import dev.lcehub.emerald.xserver.extensions.MITSHMExtension;
 import dev.lcehub.emerald.xserver.extensions.PresentExtension;
 import dev.lcehub.emerald.xserver.extensions.SyncExtension;
-import dev.lcehub.emerald.xserver.extensions.XComposite;
 
 import java.nio.charset.Charset;
 import java.util.EnumMap;
@@ -23,8 +21,7 @@ public class XServer {
     public static final short VERSION = 11;
     public static final String VENDOR_NAME = "Elbrus Technologies, LLC";
     public static final Charset LATIN1_CHARSET = Charset.forName("latin1");
-    public final XServerDisplayActivity activity;
-    private final Extension[] extensions;
+    public final SparseArray<Extension> extensions = new SparseArray<>();
     public final ScreenInfo screenInfo;
     public final PixmapManager pixmapManager;
     public final ResourceIDs resourceIDs = new ResourceIDs(128);
@@ -39,13 +36,15 @@ public class XServer {
     public final GrabManager grabManager;
     public final CursorLocker cursorLocker;
     private SHMSegmentManager shmSegmentManager;
-    private GLRenderer renderer;
+    private VulkanRenderer renderer;
     private WinHandler winHandler;
     private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
     private boolean relativeMouseMovement = false;
+    private boolean simulateTouchScreen = false;
+    private boolean isGrabbed = false;
+    private XClient grabbingClient = null;
 
-    public XServer(XServerDisplayActivity activity, ScreenInfo screenInfo) {
-        this.activity = activity;
+    public XServer(ScreenInfo screenInfo) {
         this.screenInfo = screenInfo;
         cursorLocker = new CursorLocker(this);
         for (Lockable lockable : Lockable.values()) locks.put(lockable, new ReentrantLock());
@@ -59,7 +58,7 @@ public class XServer {
         grabManager = new GrabManager(this);
 
         DesktopHelper.attachTo(this);
-        extensions = setupExtensions();
+        setupExtensions();
     }
 
     public boolean isRelativeMouseMovement() {
@@ -71,12 +70,22 @@ public class XServer {
         this.relativeMouseMovement = relativeMouseMovement;
     }
 
-    public GLRenderer getRenderer() {
+    public boolean isSimulateTouchScreen() { return simulateTouchScreen; }
+
+    public void setSimulateTouchScreen(boolean simulateTouchScreen) {
+        this.simulateTouchScreen = simulateTouchScreen;
+    }
+
+    public VulkanRenderer getRenderer() {
         return renderer;
     }
 
-    public void setRenderer(GLRenderer renderer) {
+    public void setRenderer(VulkanRenderer renderer) {
         this.renderer = renderer;
+    }
+
+    public void setRenderingEnabled(boolean enabled) {
+        windowManager.setRenderingEnabled(enabled);
     }
 
     public WinHandler getWinHandler() {
@@ -138,7 +147,10 @@ public class XServer {
     }
 
     public Extension getExtensionByName(String name) {
-        for (Extension extension : extensions) if (extension.getName().equals(name)) return extension;
+        for (int i = 0; i < extensions.size(); i++) {
+            Extension extension = extensions.valueAt(i);
+            if (extension.getName().equals(name)) return extension;
+        }
         return null;
     }
 
@@ -182,26 +194,26 @@ public class XServer {
         }
     }
 
-    private Extension[] setupExtensions() {
-        byte opcode = Extension.START_MAJOR_OPCODE;
-        return new Extension[]{
-            new BigReqExtension(this, opcode--),
-            new MITSHMExtension(this, opcode--),
-            new DRI3Extension(this, opcode--),
-            new PresentExtension(this, opcode--),
-            new SyncExtension(this, opcode--),
-            new XComposite(this, opcode--),
-            new GLXExtension(this, opcode--)
-        };
+    private void setupExtensions() {
+        extensions.put(BigReqExtension.MAJOR_OPCODE, new BigReqExtension());
+        extensions.put(MITSHMExtension.MAJOR_OPCODE, new MITSHMExtension());
+        extensions.put(DRI3Extension.MAJOR_OPCODE, new DRI3Extension());
+        extensions.put(PresentExtension.MAJOR_OPCODE, new PresentExtension());
+        extensions.put(SyncExtension.MAJOR_OPCODE, new SyncExtension());
     }
 
-    public <T extends Extension> T getExtension(byte opcode) {
-        int index = Extension.START_MAJOR_OPCODE - opcode;
-        return (T)extensions[index];
+    public <T extends Extension> T getExtension(int opcode) {
+        return (T)extensions.get(opcode);
     }
 
-    public void debugPrint(String line) {
-        DebugDialog debugDialog = activity.getDebugDialog();
-        if (debugDialog != null) debugDialog.call("xserver:"+line);
+    public synchronized void setGrabbed(boolean grabbed, XClient client) {
+        this.isGrabbed = grabbed;
+        this.grabbingClient = client;
+    }
+
+    public synchronized boolean isGrabbedBy(XClient client) {
+        return isGrabbed && grabbingClient == client;
     }
 }
+
+

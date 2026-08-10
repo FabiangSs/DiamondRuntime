@@ -1,12 +1,6 @@
 package dev.lcehub.emerald.xserver;
 
-import android.util.Rational;
-
-import dev.lcehub.emerald.math.Mathf;
-
 public class ScreenInfo {
-    public static final short MIN_WIDTH = 320;
-    public static final short MIN_HEIGHT = 200;
     public final short width;
     public final short height;
 
@@ -27,10 +21,6 @@ public class ScreenInfo {
 
     public short getHeightInMillimeters() {
         return (short)(height / 10);
-    }
-
-    public Rational aspectRatio() {
-        return Mathf.farey((float)width / height, 10);
     }
 
     @Override

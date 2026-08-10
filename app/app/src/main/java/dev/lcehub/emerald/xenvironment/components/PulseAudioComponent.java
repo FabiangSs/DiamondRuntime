@@ -3,20 +3,25 @@ package dev.lcehub.emerald.xenvironment.components;
 import android.content.Context;
 import android.os.Process;
 
-import dev.lcehub.emerald.contentdialog.AudioDriverConfigDialog;
-import dev.lcehub.emerald.core.EnvVars;
+import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.FileUtils;
 import dev.lcehub.emerald.core.ProcessHelper;
 import dev.lcehub.emerald.xconnector.UnixSocketConfig;
 import dev.lcehub.emerald.xenvironment.EnvironmentComponent;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
 
 public class PulseAudioComponent extends EnvironmentComponent {
     private final UnixSocketConfig socketConfig;
     private static int pid = -1;
-    private float volume = AudioDriverConfigDialog.DEFAULT_VOLUME;
-    private byte performanceMode = AudioDriverConfigDialog.DEFAULT_PERFORMANCE_MODE;
     private static final Object lock = new Object();
 
     public PulseAudioComponent(UnixSocketConfig socketConfig) {
@@ -40,26 +45,31 @@ public class PulseAudioComponent extends EnvironmentComponent {
             }
         }
     }
-
-    public float getVolume() {
-        return volume;
-    }
-
-    public void setVolume(float volume) {
-        this.volume = volume;
-    }
-
-    public int getPerformanceMode() {
-        return performanceMode;
-    }
-
-    public void setPerformanceMode(int performanceMode) {
-        this.performanceMode = (byte)performanceMode;
+    
+    private void copyFromLibraryDir(File dst) {
+        String[] libs = new String[] {
+            "libltdl.so", "libpulseaudio.so", "libpulse.so", "libpulsecommon-13.0.so", "libpulsecore-13.0.so", "libsndfile.so"
+        };
+        for (int i = 0; i < libs.length; i++) {
+            String path = "lib/" + "arm64-v8a" + "/" + libs[i];
+            ClassLoader loader = PulseAudioComponent.class.getClassLoader();
+            URL res = loader != null ? loader.getResource(path) : null;
+            Path dstDir = Paths.get(dst.getAbsolutePath() + "/" + libs[i]);
+            try {
+                InputStream is = res != null ? res.openStream() : null;
+                if (is != null) {
+                    Files.copy(is, dstDir, StandardCopyOption.REPLACE_EXISTING);
+                    FileUtils.chmod(dstDir.toFile(), 0771);
+                }    
+            }
+            catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 
     private int execPulseAudio() {
         Context context = environment.getContext();
-        String nativeLibraryDir = context.getApplicationInfo().nativeLibraryDir;
         File workingDir = new File(context.getFilesDir(), "/pulseaudio");
         if (!workingDir.isDirectory()) {
             workingDir.mkdirs();
@@ -69,17 +79,22 @@ public class PulseAudioComponent extends EnvironmentComponent {
         File configFile = new File(workingDir, "default.pa");
         FileUtils.writeString(configFile, String.join("\n",
             "load-module module-native-protocol-unix auth-anonymous=1 auth-cookie-enabled=0 socket=\""+socketConfig.path+"\"",
-            "load-module module-aaudio-sink volume="+volume+" performance_mode="+performanceMode,
+            "load-module module-aaudio-sink",
             "set-default-sink AAudioSink"
         ));
 
-        File modulesDir = new File(workingDir, "modules");
-        EnvVars envVars = new EnvVars();
-        envVars.put("LD_LIBRARY_PATH", "/system/lib64:"+nativeLibraryDir+":"+modulesDir);
-        envVars.put("HOME", workingDir);
-        envVars.put("TMPDIR", environment.getTmpDir());
+        String archName = AppUtils.getArchName();
+        File modulesDir = new File(workingDir, "modules/"+archName);
+        String systemLibPath = archName.equals("arm64") ? "/system/lib64" : "system/lib";
 
-        String command = nativeLibraryDir+"/libpulseaudio.so";
+        ArrayList<String> envVars = new ArrayList<>();
+        envVars.add("LD_LIBRARY_PATH="+systemLibPath+":"+modulesDir+":"+workingDir.getAbsolutePath());
+        envVars.add("HOME="+workingDir);
+        envVars.add("TMPDIR="+environment.getTmpDir());
+        
+        copyFromLibraryDir(workingDir);
+
+        String command = workingDir.getAbsolutePath() + "/libpulseaudio.so";
         command += " --system=false";
         command += " --disable-shm=true";
         command += " --fail=false";
@@ -88,6 +103,6 @@ public class PulseAudioComponent extends EnvironmentComponent {
         command += " --use-pid-file=false";
         command += " --exit-idle-time=-1";
 
-        return ProcessHelper.exec(command, envVars, workingDir);
+        return ProcessHelper.exec(command, envVars.toArray(new String[0]), workingDir);
     }
 }

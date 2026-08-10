@@ -2,21 +2,27 @@ package dev.lcehub.emerald.container;
 
 import android.content.Context;
 import android.os.Handler;
+import android.os.Looper;
+import android.util.Log;
 
 import dev.lcehub.emerald.R;
+import dev.lcehub.emerald.contents.ContentsManager;
 import dev.lcehub.emerald.core.Callback;
 import dev.lcehub.emerald.core.FileUtils;
+import dev.lcehub.emerald.core.MSLink;
+import dev.lcehub.emerald.core.OnExtractFileListener;
 import dev.lcehub.emerald.core.TarCompressorUtils;
 import dev.lcehub.emerald.core.WineInfo;
-import dev.lcehub.emerald.xenvironment.RootFS;
+import dev.lcehub.emerald.xenvironment.ImageFs;
 
-import org.json.JSONArray;
+import java.util.Arrays;
+
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Comparator;
 import java.util.concurrent.Executors;
 
 public class ContainerManager {
@@ -25,21 +31,26 @@ public class ContainerManager {
     private final File homeDir;
     private final Context context;
 
+    private boolean isInitialized = false; // New flag to track initialization
+
     public ContainerManager(Context context) {
         this.context = context;
-        File rootDir = RootFS.find(context).getRootDir();
+        File rootDir = ImageFs.find(context).getRootDir();
         homeDir = new File(rootDir, "home");
         loadContainers();
+        isInitialized = true;
     }
 
-    public Context getContext() {
-        return context;
+    // Check if the ContainerManager is fully initialized
+    public boolean isInitialized() {
+        return isInitialized;
     }
 
     public ArrayList<Container> getContainers() {
         return containers;
     }
 
+    // Load containers from the home directory
     private void loadContainers() {
         containers.clear();
         maxContainerId = 0;
@@ -49,10 +60,15 @@ public class ContainerManager {
             if (files != null) {
                 for (File file : files) {
                     if (file.isDirectory()) {
-                        if (file.getName().startsWith(RootFS.USER+"-")) {
-                            Container container = new Container(Integer.parseInt(file.getName().replace(RootFS.USER+"-", "")));
-                            container.setRootDir(new File(homeDir, RootFS.USER+"-"+container.id));
-                            JSONObject data = new JSONObject(FileUtils.readString(container.getConfigFile()));
+                        if (file.getName().startsWith(ImageFs.USER + "-")) {
+                            Container container = new Container(
+                                    Integer.parseInt(file.getName().replace(ImageFs.USER + "-", "")), this
+                            );
+
+                            container.setRootDir(new File(homeDir, ImageFs.USER + "-" + container.id));
+                            File configFile = container.getConfigFile();
+                            if (!configFile.isFile() || configFile.length() == 0) continue;
+                            JSONObject data = new JSONObject(FileUtils.readString(configFile));
                             container.loadData(data);
                             containers.add(container);
                             maxContainerId = Math.max(maxContainerId, container.id);
@@ -60,21 +76,28 @@ public class ContainerManager {
                     }
                 }
             }
+        } catch (JSONException | NullPointerException e) {
+            Log.e("ContainerManager", "Error loading containers", e);
         }
-        catch (JSONException e) {}
     }
+
+
+    public Context getContext() {
+        return context;
+    }
+
 
     public void activateContainer(Container container) {
-        container.setRootDir(new File(homeDir, RootFS.USER+"-"+container.id));
-        File file = new File(homeDir, RootFS.USER);
+        container.setRootDir(new File(homeDir, ImageFs.USER+"-"+container.id));
+        File file = new File(homeDir, ImageFs.USER);
         file.delete();
-        FileUtils.symlink(RootFS.USER+"-"+container.id, file.getPath());
+        FileUtils.symlink("./"+ImageFs.USER+"-"+container.id, file.getPath());
     }
 
-    public void createContainerAsync(final JSONObject data, Callback<Container> callback) {
+    public void createContainerAsync(final JSONObject data, ContentsManager contentsManager, Callback<Container> callback) {
         final Handler handler = new Handler();
         Executors.newSingleThreadExecutor().execute(() -> {
-            final Container container = createContainer(data);
+            final Container container = createContainer(data, contentsManager);
             handler.post(() -> callback.call(container));
         });
     }
@@ -95,133 +118,109 @@ public class ContainerManager {
         });
     }
 
-    private Container createContainer(JSONObject data) {
+    private Container createContainer(JSONObject data, ContentsManager contentsManager) {
         try {
             int id = maxContainerId + 1;
             data.put("id", id);
 
-            File containerDir = new File(homeDir, RootFS.USER+"-"+id);
+            File containerDir = new File(homeDir, ImageFs.USER+"-"+id);
             if (!containerDir.mkdirs()) return null;
 
-            Container container = new Container(id);
+            Container container = new Container(id, this);
             container.setRootDir(containerDir);
             container.loadData(data);
 
-            boolean isMainWineVersion = !data.has("wineVersion") || WineInfo.isMainWineVersion(data.getString("wineVersion"));
-            if (!isMainWineVersion) container.setWineVersion(data.getString("wineVersion"));
+            container.setWineVersion(data.getString("wineVersion"));
 
-            if (!extractContainerPatternFile(container.getWineVersion(), containerDir)) {
+            if (!extractContainerPatternFile(container, container.getWineVersion(), contentsManager, containerDir, null)) {
                 FileUtils.delete(containerDir);
                 return null;
             }
+
+//            // Extract the selected graphics driver files
+//            String driverVersion = container.getGraphicsDriverVersion();
+//            if (!extractGraphicsDriverFiles(driverVersion, containerDir, null)) {
+//                FileUtils.delete(containerDir);
+//                return null;
+//            }
 
             container.saveData();
             maxContainerId++;
             containers.add(container);
             return container;
+        } catch (JSONException e) {
+            e.printStackTrace();
         }
-        catch (JSONException e) {}
         return null;
     }
+
 
     private void duplicateContainer(Container srcContainer) {
         int id = maxContainerId + 1;
 
-        File dstDir = new File(homeDir, RootFS.USER+"-"+id);
+        File dstDir = new File(homeDir, ImageFs.USER + "-" + id);
         if (!dstDir.mkdirs()) return;
 
-        if (!FileUtils.copy(srcContainer.getRootDir(), dstDir, (file) -> FileUtils.chmod(file, 0771))) {
+        // Use the refactored copy method that doesn't require a Context for File operations
+        if (!FileUtils.copy(srcContainer.getRootDir(), dstDir, file -> FileUtils.chmod(file, 0771))) {
             FileUtils.delete(dstDir);
             return;
         }
 
-        Container dstContainer = new Container(id);
+        Container dstContainer = new Container(id, this);
         dstContainer.setRootDir(dstDir);
-        dstContainer.setName(srcContainer.getName()+" ("+context.getString(R.string.copy)+")");
+        dstContainer.setName(srcContainer.getName() + " (" + context.getString(R.string._copy) + ")");
         dstContainer.setScreenSize(srcContainer.getScreenSize());
         dstContainer.setEnvVars(srcContainer.getEnvVars());
         dstContainer.setCPUList(srcContainer.getCPUList());
         dstContainer.setCPUListWoW64(srcContainer.getCPUListWoW64());
         dstContainer.setGraphicsDriver(srcContainer.getGraphicsDriver());
-        dstContainer.setGraphicsDriverConfig(srcContainer.getGraphicsDriverConfig());
         dstContainer.setDXWrapper(srcContainer.getDXWrapper());
         dstContainer.setDXWrapperConfig(srcContainer.getDXWrapperConfig());
         dstContainer.setAudioDriver(srcContainer.getAudioDriver());
-        dstContainer.setAudioDriverConfig(srcContainer.getAudioDriverConfig());
         dstContainer.setWinComponents(srcContainer.getWinComponents());
         dstContainer.setDrives(srcContainer.getDrives());
-        dstContainer.setHUDMode(srcContainer.getHUDMode());
+        dstContainer.setShowFPS(srcContainer.isShowFPS());
         dstContainer.setStartupSelection(srcContainer.getStartupSelection());
         dstContainer.setBox64Preset(srcContainer.getBox64Preset());
         dstContainer.setDesktopTheme(srcContainer.getDesktopTheme());
+        dstContainer.setWineVersion(srcContainer.getWineVersion());
         dstContainer.saveData();
 
         maxContainerId++;
         containers.add(dstContainer);
     }
 
+
     private void removeContainer(Container container) {
         if (FileUtils.delete(container.getRootDir())) containers.remove(container);
     }
 
-    public ArrayList<Shortcut> loadShortcuts(Shortcut selectedFolder) {
+    public ArrayList<Shortcut> loadShortcuts() {
         ArrayList<Shortcut> shortcuts = new ArrayList<>();
-
-        if (selectedFolder != null) {
-            File[] files = selectedFolder.file.listFiles();
+        for (Container container : containers) {
+            File desktopDir = container.getDesktopDir();
+            ArrayList<File> files = new ArrayList<>();
+            if (desktopDir.exists())
+                files.addAll(Arrays.asList(desktopDir.listFiles()));
             if (files != null) {
                 for (File file : files) {
-                    if (file.getName().endsWith(".desktop") || file.isDirectory()) {
-                        shortcuts.add(new Shortcut(selectedFolder.container, file));
-                    }
-                }
-            }
-        }
-        else {
-            for (Container container : containers) {
-                File desktopDir = new File(container.getUserDir(), "Desktop");
-                File[] files = desktopDir.listFiles();
-                if (files != null) {
-                    for (File file : files) {
-                        if (file.getName().endsWith(".desktop") || file.isDirectory()) {
-                            shortcuts.add(new Shortcut(container, file));
+                    String fileName = file.getName();
+                    if (fileName.endsWith(".lnk")) {
+                        String filePath = file.getPath();
+                        File desktopFile = new File(filePath.substring(0, filePath.lastIndexOf(".")) + ".desktop");
+                        if (!desktopFile.exists()) {
+                            MSLink.createDesktopFile(file, context);
+                            shortcuts.add(new Shortcut(container, desktopFile));
                         }
                     }
+                    else if (fileName.endsWith(".desktop")) shortcuts.add(new Shortcut(container, file));
                 }
             }
         }
 
-        shortcuts.sort((a, b) -> {
-            int value = Boolean.compare(b.file.isDirectory(), a.file.isDirectory());
-            if (value == 0) value = a.name.compareTo(b.name);
-            return value;
-        });
+        shortcuts.sort(Comparator.comparing(a -> a.name));
         return shortcuts;
-    }
-
-    public ArrayList<FileInfo> loadFiles(Container container, FileInfo parent) {
-        ArrayList<FileInfo> fileInfos = new ArrayList<>();
-
-        if (parent != null) {
-            fileInfos = parent.list();
-        }
-        else {
-            String rootPath = container.getRootDir().getPath();
-            fileInfos.add(new FileInfo(container, "C:", rootPath+"/.wine/drive_c", FileInfo.Type.DRIVE));
-            for (Drive drive : container.drivesIterator()) {
-                fileInfos.add(new FileInfo(container, drive.letter+":", drive.path, FileInfo.Type.DRIVE));
-            }
-
-            File userDir = container.getUserDir();
-            File documentsDir = new File(userDir, "Documents");
-            File favoritesDir = new File(userDir, "Favorites");
-
-            fileInfos.add(new FileInfo(container, documentsDir.getName(), documentsDir.getPath(), FileInfo.Type.DIRECTORY));
-            fileInfos.add(new FileInfo(container, favoritesDir.getName(), favoritesDir.getPath(), FileInfo.Type.DIRECTORY));
-
-            Collections.sort(fileInfos);
-        }
-        return fileInfos;
     }
 
     public int getNextContainerId() {
@@ -233,39 +232,71 @@ public class ContainerManager {
         return null;
     }
 
-    private void copyCommonDlls(String srcName, String dstName, JSONObject commonDlls, File containerDir) throws JSONException {
-        File srcDir = new File(RootFS.find(context).getRootDir(), "/opt/wine/lib/wine/"+srcName);
-        JSONArray dlnames = commonDlls.getJSONArray(dstName);
+    private void extractCommonDlls(WineInfo wineInfo, String srcName, String dstName, File containerDir, OnExtractFileListener onExtractFileListener) throws JSONException {
+        File srcDir = new File(wineInfo.path + "/lib/wine/" + srcName);
 
-        for (int i = 0; i < dlnames.length(); i++) {
-            String dlname = dlnames.getString(i);
-            File dstFile = new File(containerDir, ".wine/drive_c/windows/"+dstName+"/"+dlname);
-            FileUtils.copy(new File(srcDir, dlname), dstFile);
-        }
-    }
+        File[] srcfiles = srcDir.listFiles(file -> file.isFile());
+        if (srcfiles == null) throw new JSONException("Missing Wine files");
 
-    private boolean extractContainerPatternFile(String wineVersion, File containerDir) {
-        if (WineInfo.isMainWineVersion(wineVersion)) {
-            boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, "container_pattern.tzst", containerDir);
-
-            if (result) {
-                try {
-                    JSONObject commonDlls = new JSONObject(FileUtils.readString(context, "common_dlls.json"));
-                    copyCommonDlls("x86_64-windows", "system32", commonDlls, containerDir);
-                    copyCommonDlls("i386-windows", "syswow64", commonDlls, containerDir);
-                }
-                catch (JSONException e) {
-                    return false;
-                }
+        for (File file : srcfiles) {
+            String dllName = file.getName();
+            if (dllName.equals("iexplore.exe") && wineInfo.isArm64EC() && srcName.equals("aarch64-windows"))
+                file = new File(wineInfo.path + "/lib/wine/" + "i386-windows/iexplore.exe");
+            if (dllName.equals("tabtip.exe") || dllName.equals("icu.dll"))
+                continue;
+            File dstFile = new File(containerDir, ".wine/drive_c/windows/" + dstName + "/" + dllName);
+            if (dstFile.exists()) continue;
+            if (onExtractFileListener != null ) {
+                dstFile = onExtractFileListener.onExtractFile(dstFile, 0);
+                if (dstFile == null) continue;
             }
-
-            return result;
-        }
-        else {
-            File installedWineDir = RootFS.find(context).getInstalledWineDir();
-            WineInfo wineInfo = WineInfo.fromIdentifier(context, wineVersion);
-            File file = new File(installedWineDir, "container-pattern-"+wineInfo.fullVersion()+".tzst");
-            return TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, file, containerDir);
+            FileUtils.copy(file, dstFile);
         }
     }
+
+    public boolean extractContainerPatternFile(Container container, String wineVersion, ContentsManager contentsManager, File containerDir, OnExtractFileListener onExtractFileListener) {
+        WineInfo wineInfo = WineInfo.fromIdentifier(context, contentsManager, wineVersion);
+        if (wineInfo.path == null || wineInfo.path.isEmpty()) return false;
+        String containerPattern = wineVersion + "_container_pattern.tzst";
+        boolean result = TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, context, containerPattern, containerDir, onExtractFileListener);
+
+        if (!result) {
+            File containerPatternFile = new File(wineInfo.path + "/prefixPack.txz");
+            result = TarCompressorUtils.extract(TarCompressorUtils.Type.XZ, containerPatternFile, containerDir);
+        }
+
+        if (result) {
+            try {
+                if (wineInfo.isArm64EC())
+                    extractCommonDlls(wineInfo, "aarch64-windows", "system32", containerDir, onExtractFileListener); // arm64ec only
+                else
+                    extractCommonDlls(wineInfo, "x86_64-windows", "system32", containerDir, onExtractFileListener);
+
+                extractCommonDlls(wineInfo, "i386-windows", "syswow64", containerDir, onExtractFileListener);
+            }
+            catch (JSONException e) {
+                return false;
+            }
+        }
+   
+        return result;
+    }
+
+    public Container getContainerForShortcut(Shortcut shortcut) {
+        // Search for the container by its ID
+        for (Container container : containers) {
+            if (container.id == shortcut.getContainerId()) {
+                return container;
+            }
+        }
+        return null;  // Return null if no matching container is found
+    }
+
+    // Utility method to run on UI thread
+    private void runOnUiThread(Runnable action) {
+        new Handler(Looper.getMainLooper()).post(action);
+    }
+
+
+
 }

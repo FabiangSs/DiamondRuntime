@@ -21,8 +21,7 @@ public class XServerComponent extends EnvironmentComponent {
     public void start() {
         if (connector != null) return;
         connector = new XConnectorEpoll(socketConfig, new XClientConnectionHandler(xServer), new XClientRequestHandler());
-        connector.setInitialInputBufferCapacity(4096);
-        connector.setInitialOutputBufferCapacity(4096);
+        connector.setInitialInputBufferCapacity(262144);
         connector.setCanReceiveAncillaryMessages(true);
         connector.start();
     }
@@ -30,7 +29,7 @@ public class XServerComponent extends EnvironmentComponent {
     @Override
     public void stop() {
         if (connector != null) {
-            connector.destroy();
+            connector.stop();
             connector = null;
         }
     }

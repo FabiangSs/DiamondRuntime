@@ -3,43 +3,78 @@ package dev.lcehub.emerald.core;
 import android.content.Context;
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.util.Log;
 
 import androidx.annotation.NonNull;
 
-import dev.lcehub.emerald.xenvironment.RootFS;
+import dev.lcehub.emerald.R;
+import dev.lcehub.emerald.contents.ContentProfile;
+import dev.lcehub.emerald.contents.ContentsManager;
+import dev.lcehub.emerald.xenvironment.ImageFs;
 
 import java.io.File;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class WineInfo implements Parcelable {
-    public static final String MAIN_WINE_VERSION = "10.10";
-    public static final WineInfo MAIN_WINE_INFO = new WineInfo(MAIN_WINE_VERSION);
-    private static final Pattern pattern = Pattern.compile("^wine\\-([0-9\\.]+)\\-?([0-9\\.]+)?\\-?(x86|x86_64)?$");
+    public static final WineInfo MAIN_WINE_VERSION = new WineInfo("proton", "11.0", "arm64ec");
+    private static final Pattern pattern = Pattern.compile("^(wine|proton)\\-([0-9\\.]+)\\-?([0-9\\.]+)?\\-(x86|x86_64|arm64ec)$");
     public final String version;
-    public final String subversion;
+    public final String type;
+    public String subversion;
     public final String path;
+    private String arch;
 
-    public WineInfo(String version) {
+    public WineInfo(String type, String version, String arch) {
+        this.type = type;
         this.version = version;
         this.subversion = null;
+        this.arch = arch;
         this.path = null;
     }
 
-    public WineInfo(String version, String subversion, String path) {
+    public WineInfo(String type, String version, String subversion, String arch, String path) {
+        this.type = type;
         this.version = version;
         this.subversion = subversion != null && !subversion.isEmpty() ? subversion : null;
+        this.arch = arch;
+        this.path = path;
+    }
+
+    public WineInfo(String type, String version, String arch, String path) {
+        this.type = type;
+        this.version = version;
+        this.arch = arch;
         this.path = path;
     }
 
     private WineInfo(Parcel in) {
+        type = in.readString();
         version = in.readString();
         subversion = in.readString();
+        arch = in.readString();
         path = in.readString();
     }
 
+    public String getArch() {
+        return arch;
+    }
+
+    public void setArch(String arch) {
+        this.arch = arch;
+    }
+
+    public boolean isWin64() {
+        return arch.equals("x86_64") || arch.equals("arm64ec");
+    }
+
+    public boolean isArm64EC() { return arch.equals("arm64ec"); }
+
     public String identifier() {
-        return "wine-"+fullVersion()+(this == MAIN_WINE_INFO ? "-custom" : "");
+        if (type.equals("proton"))
+            return "proton-" + fullVersion() + "-"+ arch;
+        else
+            return "wine-" + fullVersion() + "-" + arch;
     }
 
     public String fullVersion() {
@@ -49,7 +84,10 @@ public class WineInfo implements Parcelable {
     @NonNull
     @Override
     public String toString() {
-        return "Wine "+fullVersion()+(this == MAIN_WINE_INFO ? " (Custom)" : "");
+        if (type.equals("proton"))
+            return "Proton "+fullVersion()+(this == MAIN_WINE_VERSION ? " (Custom)" : "");
+        else
+            return "Wine "+fullVersion()+(this == MAIN_WINE_VERSION ? " (Custom)" : "");
     }
 
     @Override
@@ -69,24 +107,49 @@ public class WineInfo implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(type);
         dest.writeString(version);
         dest.writeString(subversion);
+        dest.writeString(arch);
         dest.writeString(path);
     }
 
     @NonNull
-    public static WineInfo fromIdentifier(Context context, String identifier) {
-        if (identifier.equals(MAIN_WINE_INFO.identifier())) return MAIN_WINE_INFO;
-        Matcher matcher = pattern.matcher(identifier);
-        if (matcher.find()) {
-            File installedWineDir = RootFS.find(context).getInstalledWineDir();
-            String path = (new File(installedWineDir, identifier)).getPath();
-            return new WineInfo(matcher.group(1), matcher.group(2), path);
+    public static WineInfo fromIdentifier(Context context, ContentsManager contentsManager, String identifier) {
+        ImageFs imageFs = ImageFs.find(context);
+        String path = "";
+
+        Log.d("WineInfo", "Creating WineInfo from identifier " + identifier);
+
+        if (identifier.equals(MAIN_WINE_VERSION.identifier())) return new WineInfo(MAIN_WINE_VERSION.type, MAIN_WINE_VERSION.version, MAIN_WINE_VERSION.arch, imageFs.getRootDir().getPath() + "/opt/" + MAIN_WINE_VERSION.identifier());
+
+        ContentProfile wineProfile = contentsManager.getProfileByEntryName(identifier);
+
+        if (wineProfile != null && (wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON)) {
+            identifier = identifier.substring(0, identifier.length() - 2).toLowerCase();
         }
-        else return MAIN_WINE_INFO;
+
+        Matcher matcher = pattern.matcher(identifier);
+
+        if (matcher.find()) {
+            String[] wineVersions = context.getResources().getStringArray(R.array.wine_entries);
+            for (String wineVersion : wineVersions) {
+                if (wineVersion.contains(identifier)) {
+                    path = imageFs.getRootDir().getPath() + "/opt/" + identifier;
+                    break;
+                }
+            }
+            if (path.isEmpty() && ProtonPackageManager.isInstalled(context, identifier)) path = imageFs.getRootDir().getPath() + "/opt/" + identifier;
+
+            if (wineProfile != null && (wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_WINE || wineProfile.type == ContentProfile.ContentType.CONTENT_TYPE_PROTON))
+                path = contentsManager.getInstallDir(context, wineProfile).getPath();
+
+            return new WineInfo(matcher.group(1), matcher.group(2), matcher.group(3), matcher.group(4), path);
+        }
+        else return new WineInfo(MAIN_WINE_VERSION.type, MAIN_WINE_VERSION.version, MAIN_WINE_VERSION.arch, imageFs.getRootDir().getPath() + "/opt/" + MAIN_WINE_VERSION.identifier());
     }
 
     public static boolean isMainWineVersion(String wineVersion) {
-        return wineVersion == null ||wineVersion.equals(MAIN_WINE_INFO.identifier());
+        return wineVersion == null ||wineVersion.equals(MAIN_WINE_VERSION.identifier());
     }
 }

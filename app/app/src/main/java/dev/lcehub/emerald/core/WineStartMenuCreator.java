@@ -3,7 +3,6 @@ package dev.lcehub.emerald.core;
 import android.content.Context;
 
 import dev.lcehub.emerald.container.Container;
-import dev.lcehub.emerald.win32.MSLink;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -32,13 +31,13 @@ public abstract class WineStartMenuCreator {
         }
         else {
             File outputFile = new File(currentDir, item.getString("name")+".lnk");
-            MSLink.LinkInfo linkInfo = new MSLink.LinkInfo();
-            linkInfo.targetPath = item.getString("path");
-            linkInfo.arguments = item.optString("cmdArgs");
-            linkInfo.iconLocation = item.optString("iconLocation", linkInfo.targetPath);
-            linkInfo.iconIndex = item.optInt("iconIndex", 0);
-            if (item.has("showCommand")) linkInfo.showCommand = parseShowCommand(item.getString("showCommand"));
-            MSLink.createFile(linkInfo, outputFile);
+            MSLink.Options options = new MSLink.Options();
+            options.targetPath = item.getString("path");
+            options.cmdArgs = item.optString("cmdArgs");
+            options.iconLocation = item.optString("iconLocation", options.targetPath);
+            options.iconIndex = item.optInt("iconIndex", 0);
+            if (item.has("showCommand")) options.showCommand = parseShowCommand(item.getString("showCommand"));
+            MSLink.createFile(options, outputFile);
         }
     }
 
@@ -54,23 +53,18 @@ public abstract class WineStartMenuCreator {
         else (new File(currentDir, item.getString("name")+".lnk")).delete();
     }
 
-    private static void removeOldMenu(File containerStartMenuFile, File startMenuDir) {
+    private static void removeOldMenu(File containerStartMenuFile, File startMenuDir) throws JSONException {
         if (!containerStartMenuFile.isFile()) return;
-        try {
-            JSONArray data = new JSONArray(FileUtils.readString(containerStartMenuFile));
-            for (int i = 0; i < data.length(); i++) removeMenuEntry(data.getJSONObject(i), startMenuDir);
-        }
-        catch (JSONException e) {
-            containerStartMenuFile.delete();
-        }
+        JSONArray data = new JSONArray(FileUtils.readString(containerStartMenuFile));
+        for (int i = 0; i < data.length(); i++) removeMenuEntry(data.getJSONObject(i), startMenuDir);
     }
 
     public static void create(Context context, Container container) {
-        File startMenuDir = container.getStartMenuDir();
-        File containerStartMenuFile = new File(container.getRootDir(), ".startmenu");
-        removeOldMenu(containerStartMenuFile, startMenuDir);
-
         try {
+            File startMenuDir = container.getStartMenuDir();
+            File containerStartMenuFile = new File(container.getRootDir(), ".startmenu");
+            removeOldMenu(containerStartMenuFile, startMenuDir);
+
             JSONArray data = new JSONArray(FileUtils.readString(context, "wine_startmenu.json"));
             FileUtils.writeString(containerStartMenuFile, data.toString());
             for (int i = 0; i < data.length(); i++) createMenuEntry(data.getJSONObject(i), startMenuDir);

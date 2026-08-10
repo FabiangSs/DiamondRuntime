@@ -1,9 +1,13 @@
 package dev.lcehub.emerald.sysvshm;
 
+import android.os.SharedMemory;
+import android.system.ErrnoException;
 import android.util.SparseArray;
 
 import dev.lcehub.emerald.xconnector.XConnectorEpoll;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 
 public class SysVSharedMemory {
@@ -11,7 +15,7 @@ public class SysVSharedMemory {
     private int maxSHMemoryId = 0;
 
     static {
-        System.loadLibrary("diamond");
+        System.loadLibrary("winlator");
     }
 
     private static class SHMemory {
@@ -31,6 +35,7 @@ public class SysVSharedMemory {
         synchronized (shmemories) {
             int index = shmemories.size();
             int fd = ashmemCreateRegion(index, size);
+            if (fd < 0) fd = createSharedMemory("sysvshm-"+index, (int)size);
             if (fd < 0) return -1;
 
             SHMemory shmemory = new SHMemory();
@@ -43,15 +48,13 @@ public class SysVSharedMemory {
     }
 
     public void delete(int shmid) {
-        synchronized (shmemories) {
-            SHMemory shmemory = shmemories.get(shmid);
-            if (shmemory != null) {
-                if (shmemory.fd != -1) {
-                    XConnectorEpoll.closeFd(shmemory.fd);
-                    shmemory.fd = -1;
-                }
-                shmemories.remove(shmid);
+        SHMemory shmemory = shmemories.get(shmid);
+        if (shmemory != null) {
+            if (shmemory.fd != -1) {
+                XConnectorEpoll.closeFd(shmemory.fd);
+                shmemory.fd = -1;
             }
+            shmemories.remove(shmid);
         }
     }
 
@@ -65,7 +68,8 @@ public class SysVSharedMemory {
         synchronized (shmemories) {
             SHMemory shmemory = shmemories.get(shmid);
             if (shmemory != null) {
-                if (shmemory.data == null) shmemory.data = mapSHMSegment(shmemory.fd, shmemory.size, 0, true);
+                if (shmemory.data == null) shmemory.data = mapSHMSegment(shmemory.fd, shmemory.size, 0, false);
+
                 return shmemory.data;
             }
             else return null;
@@ -85,6 +89,22 @@ public class SysVSharedMemory {
                 }
             }
         }
+    }
+
+    private static int createSharedMemory(String name, int size) {
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O_MR1) {
+                SharedMemory sharedMemory = SharedMemory.create(name, size);
+                try {
+                    Method method = sharedMemory.getClass().getMethod("getFd");
+                    Object ret = method.invoke(sharedMemory);
+                    if (ret != null) return (int)ret;
+                }
+                catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {}
+            }
+        }
+        catch (ErrnoException e) {}
+        return -1;
     }
 
     public static native int createMemoryFd(String name, int size);

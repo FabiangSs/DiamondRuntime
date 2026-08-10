@@ -123,6 +123,7 @@ public class RangeScroller {
                 if (scrollOffset < 0) scrollOffset = scrollSize + scrollOffset;
 
                 lastPosition = position;
+                inputControlsView.invalidate();
             }
         }
     }

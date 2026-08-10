@@ -1,7 +1,7 @@
 package dev.lcehub.emerald.alsaserver;
 
 import dev.lcehub.emerald.sysvshm.SysVSharedMemory;
-import dev.lcehub.emerald.xconnector.ConnectedClient;
+import dev.lcehub.emerald.xconnector.Client;
 import dev.lcehub.emerald.xconnector.RequestHandler;
 import dev.lcehub.emerald.xconnector.XConnectorEpoll;
 import dev.lcehub.emerald.xconnector.XInputStream;
@@ -15,7 +15,7 @@ public class ALSARequestHandler implements RequestHandler {
     private int maxSHMemoryId = 0;
 
     @Override
-    public boolean handleRequest(ConnectedClient client) throws IOException {
+    public boolean handleRequest(Client client) throws IOException {
         ALSAClient alsaClient = (ALSAClient)client.getTag();
         XInputStream inputStream = client.getInputStream();
         XOutputStream outputStream = client.getOutputStream();
@@ -40,24 +40,23 @@ public class ALSARequestHandler implements RequestHandler {
             case RequestCodes.PREPARE:
                 if (inputStream.available() < requestLength) return false;
 
-                alsaClient.setChannels(inputStream.readByte());
+                alsaClient.setChannelCount(inputStream.readByte());
                 alsaClient.setDataType(ALSAClient.DataType.values()[inputStream.readByte()]);
                 alsaClient.setSampleRate(inputStream.readInt());
                 alsaClient.setBufferSize(inputStream.readInt());
                 alsaClient.prepare();
 
-                if (ALSAClient.USE_SHARED_MEMORY) createSharedMemory(alsaClient, outputStream);
+                createSharedMemory(alsaClient, outputStream);
                 break;
             case RequestCodes.WRITE:
-                ByteBuffer sharedBuffer = alsaClient.getSharedBuffer();
-                if (sharedBuffer != null) {
-                    copySharedBuffer(alsaClient, requestLength, outputStream);
-                    alsaClient.writeDataToTrack(alsaClient.getAuxBuffer());
-                    sharedBuffer.putInt(0, alsaClient.pointer());
+                ByteBuffer buffer = alsaClient.getSharedBuffer();
+                if (buffer != null) {
+                    buffer.limit(requestLength);
+                    alsaClient.writeDataToStream(buffer);
                 }
                 else {
                     if (inputStream.available() < requestLength) return false;
-                    alsaClient.writeDataToTrack(inputStream.readByteBuffer(requestLength));
+                    alsaClient.writeDataToStream(inputStream.readByteBuffer(requestLength));
                 }
                 break;
             case RequestCodes.DRAIN:
@@ -68,39 +67,16 @@ public class ALSARequestHandler implements RequestHandler {
                     outputStream.writeInt(alsaClient.pointer());
                 }
                 break;
-            case RequestCodes.MIN_BUFFER_SIZE:
-                byte channels = inputStream.readByte();
-                ALSAClient.DataType dataType = ALSAClient.DataType.values()[inputStream.readByte()];
-                int sampleRate = inputStream.readInt();
-                int minBufferSize = ALSAClient.latencyMillisToBufferSize(alsaClient.options.latencyMillis, channels, dataType, sampleRate);
-
-                try (XStreamLock lock = outputStream.lock()) {
-                    outputStream.writeInt(minBufferSize);
-                }
-                break;
         }
         return true;
     }
 
-    private void copySharedBuffer(ALSAClient alsaClient, int requestLength, XOutputStream outputStream) throws IOException {
-        ByteBuffer sharedBuffer = alsaClient.getSharedBuffer();
-        ByteBuffer auxBuffer = alsaClient.getAuxBuffer();
-
-        auxBuffer.position(0).limit(requestLength);
-        sharedBuffer.position(ALSAClient.BUFFER_OFFSET).limit(ALSAClient.BUFFER_OFFSET + requestLength);
-        auxBuffer.put(sharedBuffer);
-
-        try (XStreamLock lock = outputStream.lock()) {
-            outputStream.writeByte((byte)1);
-        }
-    }
-
     private void createSharedMemory(ALSAClient alsaClient, XOutputStream outputStream) throws IOException {
-        int shmSize = alsaClient.getBufferSizeInBytes() + ALSAClient.BUFFER_OFFSET;
-        int fd = SysVSharedMemory.createMemoryFd("alsa-shm"+(++maxSHMemoryId), shmSize);
+        int size = alsaClient.getBufferSizeInBytes();
+        int fd = SysVSharedMemory.createMemoryFd("alsa-shm"+(++maxSHMemoryId), size);
 
         if (fd >= 0) {
-            ByteBuffer buffer = SysVSharedMemory.mapSHMSegment(fd, shmSize, 0, false);
+            ByteBuffer buffer = SysVSharedMemory.mapSHMSegment(fd, size, 0, true);
             if (buffer != null) alsaClient.setSharedBuffer(buffer);
         }
 

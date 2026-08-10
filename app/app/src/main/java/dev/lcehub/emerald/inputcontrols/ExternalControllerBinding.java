@@ -20,7 +20,7 @@ public class ExternalControllerBinding {
     private short keyCode;
     private Binding binding = Binding.NONE;
 
-    public int getKeyCodeForAxis() {
+    public int getKeyCode() {
         return keyCode;
     }
 
@@ -73,16 +73,17 @@ public class ExternalControllerBinding {
         }
     }
 
+
     public static int getKeyCodeForAxis(int axis, byte sign) {
         switch (axis) {
             case MotionEvent.AXIS_X:
                 return sign > 0 ? AXIS_X_POSITIVE : AXIS_X_NEGATIVE;
             case MotionEvent.AXIS_Y:
-                return sign > 0 ? AXIS_Y_NEGATIVE : AXIS_Y_POSITIVE;
+                return sign > 0 ? AXIS_Y_POSITIVE : AXIS_Y_NEGATIVE;
             case MotionEvent.AXIS_Z:
                 return sign > 0 ? AXIS_Z_POSITIVE : AXIS_Z_NEGATIVE;
             case MotionEvent.AXIS_RZ:
-                return sign > 0 ? AXIS_RZ_NEGATIVE : AXIS_RZ_POSITIVE;
+                return sign > 0 ? AXIS_RZ_POSITIVE : AXIS_RZ_NEGATIVE;
             case MotionEvent.AXIS_HAT_X:
                 return sign > 0 ? KeyEvent.KEYCODE_DPAD_RIGHT : KeyEvent.KEYCODE_DPAD_LEFT;
             case MotionEvent.AXIS_HAT_Y:
@@ -91,4 +92,5 @@ public class ExternalControllerBinding {
                 return KeyEvent.KEYCODE_UNKNOWN;
         }
     }
+
 }

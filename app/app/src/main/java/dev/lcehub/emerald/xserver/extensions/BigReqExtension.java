@@ -6,20 +6,31 @@ import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
 import dev.lcehub.emerald.xserver.XClient;
-import dev.lcehub.emerald.xserver.XServer;
 
 import java.io.IOException;
 
-public class BigReqExtension extends Extension {
+public class BigReqExtension implements Extension {
+    public static final byte MAJOR_OPCODE = -100;
     private static final int MAX_REQUEST_LENGTH = 4194303;
-
-    public BigReqExtension(XServer xServer, byte majorOpcode) {
-        super(xServer, majorOpcode);
-    }
 
     @Override
     public String getName() {
         return "BIG-REQUESTS";
+    }
+
+    @Override
+    public byte getMajorOpcode() {
+        return MAJOR_OPCODE;
+    }
+
+    @Override
+    public byte getFirstErrorId() {
+        return 0;
+    }
+
+    @Override
+    public byte getFirstEventId() {
+        return 0;
     }
 
     @Override

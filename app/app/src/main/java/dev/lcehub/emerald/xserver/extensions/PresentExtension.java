@@ -6,10 +6,11 @@ import android.util.SparseArray;
 
 import dev.lcehub.emerald.renderer.GPUImage;
 import dev.lcehub.emerald.renderer.Texture;
+import dev.lcehub.emerald.renderer.VulkanRenderer;
 import dev.lcehub.emerald.xconnector.XInputStream;
 import dev.lcehub.emerald.xconnector.XOutputStream;
 import dev.lcehub.emerald.xconnector.XStreamLock;
-import dev.lcehub.emerald.core.Bitmask;
+import dev.lcehub.emerald.xserver.Bitmask;
 import dev.lcehub.emerald.xserver.Drawable;
 import dev.lcehub.emerald.xserver.Pixmap;
 import dev.lcehub.emerald.xserver.Window;
@@ -18,6 +19,7 @@ import dev.lcehub.emerald.xserver.XLock;
 import dev.lcehub.emerald.xserver.XServer;
 import dev.lcehub.emerald.xserver.errors.BadImplementation;
 import dev.lcehub.emerald.xserver.errors.BadMatch;
+import dev.lcehub.emerald.xserver.errors.BadPixmap;
 import dev.lcehub.emerald.xserver.errors.BadWindow;
 import dev.lcehub.emerald.xserver.errors.XRequestError;
 import dev.lcehub.emerald.xserver.events.PresentCompleteNotify;
@@ -25,169 +27,301 @@ import dev.lcehub.emerald.xserver.events.PresentIdleNotify;
 
 import java.io.IOException;
 
-public class PresentExtension extends Extension {
-    public static final byte MAJOR_VERSION = 1;
-    public static final byte MINOR_VERSION = 0;
-    private static final int FAKE_INTERVAL = 1000000 / 60;
+public class PresentExtension implements Extension {
+    public static final byte MAJOR_OPCODE = -103;
+    public enum Kind { PIXMAP, MSC_NOTIFY }
+    public enum Mode { COPY, FLIP, SKIP }
 
-    public enum Kind {PIXMAP, MSC_NOTIFY}
-    public enum Mode {COPY, FLIP, SKIP}
     private final SparseArray<Event> events = new SparseArray<>();
     private SyncExtension syncExtension;
 
+    private static class PendingIdle {
+        Window window; Pixmap pixmap; int serial; int idleFence;
+        long targetNs;
+        int  vsyncSkips;
+        PendingIdle(Window w, Pixmap p, int s, int f, long t, int sk) {
+            window = w; pixmap = p; serial = s; idleFence = f; targetNs = t; vsyncSkips = sk;
+        }
+    }
+
+    private final java.util.concurrent.ConcurrentHashMap<Integer, PendingIdle> pendingIdles =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
+    private volatile android.view.Choreographer choreographer = null;
+    private volatile boolean choreographerChecked = false;
+    private final Object choreographerLock = new Object();
+
+    private Thread cpuPacerThread = null;
+    private final java.util.concurrent.PriorityBlockingQueue<PendingIdle> cpuQueue =
+        new java.util.concurrent.PriorityBlockingQueue<>(11,
+            java.util.Comparator.comparingLong(p -> p.targetNs));
+
+    private static final long FIRE_EARLY_NS = 700_000L;
+
+    private android.view.Choreographer tryGetChoreographer(VulkanRenderer renderer) {
+        if (choreographerChecked) return choreographer;
+        synchronized (choreographerLock) {
+            if (choreographerChecked) return choreographer;
+            choreographerChecked = true;
+            try {
+                if (renderer != null && renderer.xServerView != null) {
+
+                    choreographer = android.view.Choreographer.getInstance();
+                }
+            } catch (Exception ignored) {
+
+                android.util.Log.w("PresentExtension", "Choreographer unavailable, using CPU pacer");
+            }
+            if (choreographer == null) {
+                startCpuPacer();
+            }
+            return choreographer;
+        }
+    }
+
+    private void startCpuPacer() {
+        if (cpuPacerThread != null) return;
+        cpuPacerThread = new Thread(() -> {
+            while (!Thread.interrupted()) {
+                PendingIdle p = cpuQueue.peek();
+                if (p == null) {
+                    java.util.concurrent.locks.LockSupport.parkNanos(500_000L);
+                    continue;
+                }
+                long now = System.nanoTime();
+                if (now >= p.targetNs) {
+                    cpuQueue.poll();
+
+                    pendingIdles.remove(p.window.id, p);
+                    sendIdleNotify(p.window, p.pixmap, p.serial, p.idleFence);
+                } else {
+                    long diff = p.targetNs - now;
+                    if (diff > 2_000_000L)
+                        java.util.concurrent.locks.LockSupport.parkNanos(1_000_000L);
+                    else
+                        Thread.yield();
+                }
+            }
+        }, "PresentPacer-CPU");
+        cpuPacerThread.setDaemon(true);
+        cpuPacerThread.setPriority(Thread.MAX_PRIORITY);
+        cpuPacerThread.start();
+    }
+
+    private boolean choreographerPosted = false;
+    private final android.view.Choreographer.FrameCallback vsyncCallback = frameTimeNs -> {
+        choreographerPosted = false;
+        boolean anyRemaining = false;
+        for (java.util.Iterator<java.util.Map.Entry<Integer, PendingIdle>> it =
+                pendingIdles.entrySet().iterator(); it.hasNext(); ) {
+            PendingIdle p = it.next().getValue();
+            if (frameTimeNs >= p.targetNs) {
+                if (p.vsyncSkips > 0) {
+
+                    p.vsyncSkips--;
+                    anyRemaining = true;
+                } else {
+                    it.remove();
+                    sendIdleNotify(p.window, p.pixmap, p.serial, p.idleFence);
+                }
+            } else {
+                anyRemaining = true;
+            }
+        }
+        if (anyRemaining) postChoreographerCallback();
+    };
+
+    private void postChoreographerCallback() {
+        if (choreographer == null || choreographerPosted) return;
+        choreographerPosted = true;
+        choreographer.postFrameCallback(vsyncCallback);
+    }
+
+    private static class WindowTiming { long nextIdleNs = 0; }
+    private final java.util.concurrent.ConcurrentHashMap<Integer, WindowTiming> windowTimings =
+        new java.util.concurrent.ConcurrentHashMap<>();
+
+    private void scheduleIdleNotify(Window window, Pixmap pixmap, int serial,
+                                     int idleFence, int targetFps, VulkanRenderer renderer) {
+        if (targetFps <= 0) {
+            sendIdleNotify(window, pixmap, serial, idleFence);
+            return;
+        }
+
+        final long frameNs = 1_000_000_000L / targetFps;
+        long now = System.nanoTime();
+
+        WindowTiming wt = windowTimings.computeIfAbsent(window.id, k -> new WindowTiming());
+        if (wt.nextIdleNs <= now - frameNs) {
+            wt.nextIdleNs = now + frameNs;
+        } else {
+            wt.nextIdleNs += frameNs;
+        }
+        long fireTime = wt.nextIdleNs - FIRE_EARLY_NS;
+
+        android.view.Choreographer ch = tryGetChoreographer(renderer);
+        if (ch != null) {
+
+            pendingIdles.put(window.id,
+                new PendingIdle(window, pixmap, serial, idleFence, fireTime, 0));
+            postChoreographerCallback();
+        } else {
+
+            cpuQueue.offer(new PendingIdle(window, pixmap, serial, idleFence, fireTime, 0));
+        }
+    }
+
     private static abstract class ClientOpcodes {
-        private static final byte QUERY_VERSION = 0;
-        private static final byte PRESENT_PIXMAP = 1;
-        private static final byte SELECT_INPUT = 3;
+        static final byte QUERY_VERSION = 0;
+        static final byte PRESENT_PIXMAP = 1;
+        static final byte SELECT_INPUT = 3;
     }
 
     private static class Event {
-        private Window window;
-        private XClient client;
-        private int id;
-        private Bitmask mask;
+        Window window;
+        XClient client;
+        int id;
+        Bitmask mask;
     }
 
-    public PresentExtension(XServer xServer, byte majorOpcode) {
-        super(xServer, majorOpcode);
-    }
-
-    @Override
-    public String getName() {
-        return "Present";
-    }
+    @Override public String getName() { return "Present"; }
+    @Override public byte getMajorOpcode() { return MAJOR_OPCODE; }
+    @Override public byte getFirstErrorId() { return 0; }
+    @Override public byte getFirstEventId() { return 0; }
 
     private void sendIdleNotify(Window window, Pixmap pixmap, int serial, int idleFence) {
-        if (idleFence != 0) syncExtension.setTriggered(idleFence);
-        if (events.size() == 0) return;
-
+        if (idleFence != 0 && syncExtension != null)
+            syncExtension.setTriggered(idleFence);
         synchronized (events) {
             for (int i = 0; i < events.size(); i++) {
-                Event event = events.valueAt(i);
-                if (event.window == window && event.mask.isSet(PresentIdleNotify.getEventMask())) {
-                    event.client.sendEvent(new PresentIdleNotify(this, event.id, window, pixmap, serial, idleFence));
-                }
+                Event e = events.valueAt(i);
+                if (e.window == window && e.mask.isSet(PresentIdleNotify.getEventMask()))
+                    e.client.sendEvent(new PresentIdleNotify(e.id, window, pixmap, serial, idleFence));
             }
         }
     }
 
     private void sendCompleteNotify(Window window, int serial, Kind kind, Mode mode, long ust, long msc) {
-        if (events.size() == 0) return;
+        synchronized (events) {
+            for (int i = 0; i < events.size(); i++) {
+                Event e = events.valueAt(i);
+                if (e.window == window && e.mask.isSet(PresentCompleteNotify.getEventMask()))
+                    e.client.sendEvent(new PresentCompleteNotify(e.id, window, serial, kind, mode, ust, msc));
+            }
+        }
+    }
 
-        if (ust == 0 && msc == 0) {
-            ust = System.nanoTime() / 1000;
-            msc = ust / FAKE_INTERVAL;
+    private static void queryVersion(XClient client, XInputStream in, XOutputStream out) throws IOException {
+        in.skip(8);
+        try (XStreamLock lock = out.lock()) {
+            out.writeByte(RESPONSE_CODE_SUCCESS);
+            out.writeByte((byte)0);
+            out.writeShort(client.getSequenceNumber());
+            out.writeInt(0);
+            out.writeInt(1);
+            out.writeInt(0);
+            out.writePad(16);
+        }
+    }
+
+    private void presentPixmap(XClient client, XInputStream in, XOutputStream out)
+            throws IOException, XRequestError {
+        int windowId = in.readInt();
+        int pixmapId = in.readInt();
+        int serial   = in.readInt();
+        in.skip(8);
+        short xOff = in.readShort();
+        short yOff = in.readShort();
+        in.skip(8);
+        int idleFence = in.readInt();
+        in.skip(client.getRemainingRequestLength());
+
+        Window window = client.xServer.windowManager.getWindow(windowId);
+        if (window == null) throw new BadWindow(windowId);
+
+        Pixmap pixmap = client.xServer.pixmapManager.getPixmap(pixmapId);
+        if (pixmap == null) throw new BadPixmap(pixmapId);
+
+        Drawable content = window.getContent();
+        if (content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
+
+        VulkanRenderer renderer = client.xServer.getRenderer();
+        int targetFps = renderer != null ? renderer.getFpsLimit() : 0;
+
+        long ust = System.nanoTime() / 1000;
+        long msc = ust / (targetFps > 0 ? (1_000_000L / targetFps) : (1_000_000L / 60));
+
+        synchronized (content.renderLock) {
+            if (renderer != null && window.attributes.isMapped()) {
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+                renderer.onUpdateWindowContentDirect(window, pixmap.drawable, xOff, yOff);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+            } else {
+                content.copyArea((short)0, (short)0, xOff, yOff,
+                    pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
+                sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, ust, msc);
+                scheduleIdleNotify(window, pixmap, serial, idleFence, targetFps, renderer);
+            }
+        }
+    }
+
+    private void selectInput(XClient client, XInputStream in, XOutputStream out)
+            throws IOException, XRequestError {
+        int eventId  = in.readInt();
+        int windowId = in.readInt();
+        Bitmask mask = new Bitmask(in.readInt());
+
+        Window window = client.xServer.windowManager.getWindow(windowId);
+        if (window == null) throw new BadWindow(windowId);
+
+        if (GPUImage.isSupported() && !mask.isEmpty()) {
+            Drawable content = window.getContent();
+            final Texture oldTexture = content.getTexture();
+            if (oldTexture != null && !(oldTexture instanceof GPUImage)) {
+                VulkanRenderer r = client.xServer.getRenderer();
+                if (r != null)
+                    r.xServerView.queueEvent(oldTexture::destroy);
+            }
+            if (!(content.getTexture() instanceof GPUImage))
+                content.setTexture(new GPUImage(content.width, content.height));
         }
 
         synchronized (events) {
-            for (int i = 0; i < events.size(); i++) {
-                Event event = events.valueAt(i);
-                if (event.window == window && event.mask.isSet(PresentCompleteNotify.getEventMask())) {
-                    event.client.sendEvent(new PresentCompleteNotify(this, event.id, window, serial, kind, mode, ust, msc));
-                }
-            }
-        }
-    }
-
-    private void queryVersion(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
-        inputStream.skip(8);
-
-        try (XStreamLock lock = outputStream.lock()) {
-            outputStream.writeByte(RESPONSE_CODE_SUCCESS);
-            outputStream.writeByte((byte)0);
-            outputStream.writeShort(client.getSequenceNumber());
-            outputStream.writeInt(0);
-            outputStream.writeInt(MAJOR_VERSION);
-            outputStream.writeInt(MINOR_VERSION);
-            outputStream.writePad(16);
-        }
-    }
-
-    private void presentPixmap(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
-        int windowId = inputStream.readInt();
-        int pixmapId = inputStream.readInt();
-        int serial = inputStream.readInt();
-        inputStream.skip(8);
-        short xOff = inputStream.readShort();
-        short yOff = inputStream.readShort();
-        inputStream.skip(8);
-        int idleFence = inputStream.readInt();
-        inputStream.skip(client.getRemainingRequestLength());
-
-        Window window = xServer.windowManager.getWindow(windowId);
-        if (window == null) throw new BadWindow(windowId);
-
-        Pixmap pixmap = xServer.pixmapManager.getPixmap(pixmapId);
-
-        Drawable content = window.getContent();
-        if (pixmap != null && content.visual.depth != pixmap.drawable.visual.depth) throw new BadMatch();
-
-        synchronized (content.renderLock) {
-            if (pixmap != null) {
-                content.copyArea((short)0, (short)0, xOff, yOff, pixmap.drawable.width, pixmap.drawable.height, pixmap.drawable);
-                sendIdleNotify(window, pixmap, serial, idleFence);
-            }
-            else content.forceUpdate();
-            sendCompleteNotify(window, serial, Kind.PIXMAP, Mode.COPY, 0, 0);
-        }
-    }
-
-    private void selectInput(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
-        int eventId = inputStream.readInt();
-        int windowId = inputStream.readInt();
-        Bitmask mask = new Bitmask(inputStream.readInt());
-
-        Window window = xServer.windowManager.getWindow(windowId);
-        if (window == null) throw new BadWindow(windowId);
-
-        Drawable content = window.getContent();
-        final Texture texture = content.getTexture();
-
-        if (!(texture instanceof GPUImage)) {
-            xServer.getRenderer().xServerView.queueEvent(texture::destroy);
-            content.setTexture(new GPUImage(content));
-        }
-
-        if (eventId > 0) {
-            synchronized (events) {
-                Event event = events.get(eventId);
-                if (event != null) {
-                    if (event.window != window || event.client != client) throw new BadMatch();
-
-                    if (!mask.isEmpty()) {
-                        event.mask = mask;
-                    }
-                    else events.remove(eventId);
-                }
-                else {
-                    event = new Event();
-                    event.id = eventId;
-                    event.window = window;
-                    event.client = client;
-                    event.mask = mask;
-                    events.put(eventId, event);
-                }
+            Event event = events.get(eventId);
+            if (event != null) {
+                if (event.window != window || event.client != client) throw new BadMatch();
+                if (!mask.isEmpty()) event.mask = mask;
+                else events.remove(eventId);
+            } else {
+                event = new Event();
+                event.id     = eventId;
+                event.window = window;
+                event.client = client;
+                event.mask   = mask;
+                events.put(eventId, event);
             }
         }
     }
 
     @Override
-    public void handleRequest(XClient client, XInputStream inputStream, XOutputStream outputStream) throws IOException, XRequestError {
+    public void handleRequest(XClient client, XInputStream in, XOutputStream out)
+            throws IOException, XRequestError {
         int opcode = client.getRequestData();
-        if (syncExtension == null) syncExtension = (SyncExtension)xServer.getExtensionByName("SYNC");
+        if (syncExtension == null)
+            syncExtension = client.xServer.getExtension(SyncExtension.MAJOR_OPCODE);
 
         switch (opcode) {
-            case ClientOpcodes.QUERY_VERSION :
-                queryVersion(client, inputStream, outputStream);
+            case ClientOpcodes.QUERY_VERSION:
+                queryVersion(client, in, out);
                 break;
             case ClientOpcodes.PRESENT_PIXMAP:
-                try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER, XServer.Lockable.PIXMAP_MANAGER)) {
-                    presentPixmap(client, inputStream, outputStream);
+                try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+                    presentPixmap(client, in, out);
                 }
                 break;
             case ClientOpcodes.SELECT_INPUT:
-                try (XLock lock = xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
-                    selectInput(client, inputStream, outputStream);
+                try (XLock lock = client.xServer.lock(XServer.Lockable.WINDOW_MANAGER)) {
+                    selectInput(client, in, out);
                 }
                 break;
             default:

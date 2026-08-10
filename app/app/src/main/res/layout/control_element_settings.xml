@@ -18,7 +18,8 @@
         <Spinner
             style="@style/ComboBox"
             android:id="@+id/SType"
-            android:layout_width="match_parent" />
+            android:layout_width="match_parent"
+            android:spinnerMode="dialog" />
 
         <LinearLayout
             android:id="@+id/LLShape"
@@ -34,36 +35,70 @@
             <Spinner
                 style="@style/ComboBox"
                 android:id="@+id/SShape"
-                android:layout_width="match_parent" />
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/scale"/>
+            android:orientation="horizontal">
 
-        <dev.lcehub.emerald.widget.SeekBar
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/scale"/>
+
+            <TextView
+                android:id="@+id/TVScale"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <SeekBar
             android:id="@+id/SBScale"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:suffix="%"
-            app:step="5"
-            app:minValue="50"
-            app:maxValue="300" />
+            android:min="50"
+            android:max="150" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Opacity"/>
+
+            <TextView
+                android:id="@+id/TVOpacity"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </LinearLayout>
+
+        <SeekBar
+            android:id="@+id/SBOpacity"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:min="10"
+            android:max="100" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/opacity" />
+            android:layout_marginTop="4dp"
+            android:text="Theme Color" />
 
-        <dev.lcehub.emerald.widget.SeekBar
-            android:id="@+id/SBOpacity"
+        <LinearLayout
+            android:id="@+id/LLColorList"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:suffix="%"
-            app:step="5"
-            app:minValue="0"
-            app:maxValue="100" />
+            android:layout_marginTop="4dp"
+            android:orientation="vertical" />
 
         <LinearLayout
             android:id="@+id/LLRangeOptions"
@@ -79,7 +114,8 @@
             <Spinner
                 style="@style/ComboBox"
                 android:id="@+id/SRange"
-                android:layout_width="match_parent" />
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
 
             <TextView
                 android:layout_width="wrap_content"
@@ -119,58 +155,68 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/LLMIDIKeyOptions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/note" />
-
-            <Spinner
-                style="@style/ComboBox"
-                android:id="@+id/SNote"
-                android:layout_width="match_parent" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/LLRadialMenuOptions"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="@string/bindings" />
-
-            <dev.lcehub.emerald.widget.NumberPicker
-                android:id="@+id/NPBindings"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                app:minValue="3"
-                app:maxValue="6" />
-        </LinearLayout>
-
-        <LinearLayout
             android:id="@+id/LLBindings"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical" />
+
+        <LinearLayout
+            android:id="@+id/LLDPadBindings"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:visibility="gone"
+            android:orientation="vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/binding_up" />
+
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/SBindingUp"
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/binding_right" />
+
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/SBindingRight"
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/binding_down" />
+
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/SBindingDown"
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/binding_left" />
+
+            <Spinner
+                style="@style/ComboBox"
+                android:id="@+id/SBindingLeft"
+                android:layout_width="match_parent"
+                android:spinnerMode="dialog" />
+        </LinearLayout>
 
         <CheckBox
             android:id="@+id/CBToggleSwitch"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/toggle_switch" />
-
-        <CheckBox
-            android:id="@+id/CBMouseMoveMode"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/move_mouse_when_pressed" />
 
         <LinearLayout
             android:id="@+id/LLCustomTextIcon"
@@ -207,6 +253,13 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal" />
             </HorizontalScrollView>
+
+            <CheckBox
+                android:id="@+id/CBMouseMoveMode"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="Move mouse cursor while dragging (touchpad mode)" />
         </LinearLayout>
     </LinearLayout>
 </ScrollView>

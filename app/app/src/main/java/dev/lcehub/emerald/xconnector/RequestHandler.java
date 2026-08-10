@@ -3,5 +3,5 @@ package dev.lcehub.emerald.xconnector;
 import java.io.IOException;
 
 public interface RequestHandler {
-    boolean handleRequest(ConnectedClient client) throws IOException;
+    boolean handleRequest(Client client) throws IOException;
 }

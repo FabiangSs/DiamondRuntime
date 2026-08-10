@@ -1,6 +1,6 @@
 package dev.lcehub.emerald.sysvshm;
 
-import dev.lcehub.emerald.xconnector.ConnectedClient;
+import dev.lcehub.emerald.xconnector.Client;
 import dev.lcehub.emerald.xconnector.ConnectionHandler;
 
 public class SysVSHMConnectionHandler implements ConnectionHandler {
@@ -11,10 +11,11 @@ public class SysVSHMConnectionHandler implements ConnectionHandler {
     }
 
     @Override
-    public void handleNewConnection(ConnectedClient client) {
+    public void handleNewConnection(Client client) {
+        client.createIOStreams();
         client.setTag(sysVSharedMemory);
     }
 
     @Override
-    public void handleConnectionShutdown(ConnectedClient client) {}
+    public void handleConnectionShutdown(Client client) {}
 }

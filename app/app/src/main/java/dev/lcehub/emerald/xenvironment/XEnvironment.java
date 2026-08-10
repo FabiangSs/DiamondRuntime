@@ -3,6 +3,7 @@ package dev.lcehub.emerald.xenvironment;
 import android.content.Context;
 
 import dev.lcehub.emerald.core.FileUtils;
+import dev.lcehub.emerald.xenvironment.components.GuestProgramLauncherComponent;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -10,20 +11,20 @@ import java.util.Iterator;
 
 public class XEnvironment implements Iterable<EnvironmentComponent> {
     private final Context context;
-    private final RootFS rootFS;
+    private final ImageFs imageFs;
     private final ArrayList<EnvironmentComponent> components = new ArrayList<>();
 
-    public XEnvironment(Context context, RootFS rootFS) {
+    public XEnvironment(Context context, ImageFs imageFs) {
         this.context = context;
-        this.rootFS = rootFS;
+        this.imageFs = imageFs;
     }
 
     public Context getContext() {
         return context;
     }
 
-    public RootFS getRootFS() {
-        return rootFS;
+    public ImageFs getImageFs() {
+        return imageFs;
     }
 
     public void addComponent(EnvironmentComponent environmentComponent) {
@@ -62,10 +63,12 @@ public class XEnvironment implements Iterable<EnvironmentComponent> {
     }
 
     public void onPause() {
-        for (EnvironmentComponent environmentComponent : this) environmentComponent.onPause();
+        GuestProgramLauncherComponent guestProgramLauncherComponent = getComponent(GuestProgramLauncherComponent.class);
+        if (guestProgramLauncherComponent != null) guestProgramLauncherComponent.suspendProcess();
     }
 
     public void onResume() {
-        for (EnvironmentComponent environmentComponent : this) environmentComponent.onResume();
+        GuestProgramLauncherComponent guestProgramLauncherComponent = getComponent(GuestProgramLauncherComponent.class);
+        if (guestProgramLauncherComponent != null) guestProgramLauncherComponent.resumeProcess();
     }
 }

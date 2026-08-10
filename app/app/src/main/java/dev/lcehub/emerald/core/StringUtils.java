@@ -2,16 +2,11 @@ package dev.lcehub.emerald.core;
 
 import android.content.Context;
 
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
-import java.util.Arrays;
 import java.util.Locale;
 
 public class StringUtils {
-    public static String removeStartSlash(String value) {
-        while (value.startsWith("/") || value.startsWith("\\")) value = value.substring(1);
-        return value;
-    }
-
     public static String removeEndSlash(String value) {
         while (value.endsWith("/") || value.endsWith("\\")) value = value.substring(0, value.length()-1);
         return value;
@@ -29,11 +24,7 @@ public class StringUtils {
         return text.substring(0, start) + value + text.substring(end);
     }
 
-    public static String escapeDOSPath(String path) {
-        return path.replace("\\", "\\\\").replace(" ", "\\ ");
-    }
-
-    public static String unescapeDOSPath(String path) {
+    public static String unescape(String path) {
         return path.replaceAll("\\\\([^\\\\]+)", "$1").replaceAll("\\\\([^\\\\]+)", "$1").replaceAll("\\\\\\\\", "\\\\").trim();
     }
 
@@ -42,50 +33,7 @@ public class StringUtils {
     }
 
     public static String parseNumber(Object text) {
-        return parseNumber(text, "");
-    }
-
-    public static String parseMemorySize(Object text) {
-        return parseMemorySize(text, "MB");
-    }
-
-    public static String parseMemorySize(Object text, String targetUnit) {
-        final String[] units = new String[]{"bytes", "KB", "MB", "GB", "TB"};
-        String value = text.toString();
-        int targetIndex = -1;
-        for (int i = 0; i < units.length; i++) {
-            if (units[i].equalsIgnoreCase(targetUnit)) {
-                targetIndex = i;
-                break;
-            }
-        }
-
-        if (targetIndex != -1) {
-            try {
-                for (int i = 0; i < units.length; i++) {
-                    if (value.endsWith(" "+units[i])) {
-                        long number = Long.parseLong(value.replace(" "+units[i], ""));
-                        int diff = targetIndex - i;
-                        if (diff < 0) {
-                            return String.valueOf((long)(number * Math.pow(1024, Math.abs(diff))));
-                        }
-                        else if (diff > 0) {
-                            return String.valueOf(number / Math.pow(1024, diff));
-                        }
-                        else return String.valueOf(number);
-                    }
-                }
-            }
-            catch (NumberFormatException e) {
-                return "0";
-            }
-        }
-        return value.matches("[0-9\\.]+") ? value : "0";
-    }
-
-    public static String parseNumber(Object text, String fallback) {
-        String result = text != null ? text.toString().replaceAll("[^0-9\\.]+", "") : "";
-        return !result.isEmpty() ? result : fallback;
+        return text.toString().replaceAll("[^0-9\\.]+", "");
     }
 
     public static String getString(Context context, String resName) {
@@ -121,14 +69,39 @@ public class StringUtils {
         return indexOfNull != -1 ? value.substring(0, indexOfNull) : value;
     }
 
-    public static String clearReservedChars(String name) {
-        if (name == null || name.isEmpty()) return "";
-        return name.replaceAll("[\\\\/:*?\"<>\\|]+", "");
+    public static String fromANSIString(ByteBuffer data, int pos) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = pos; data.get(i) != '\0'; i++) {
+            sb.append((char) data.get(i));
+        }
+        return sb.toString();
     }
 
-    public static String repeat(char chr, int count) {
-        final char[] buffer = new char[count];
-        Arrays.fill(buffer, chr);
-        return new String(buffer);
+    public static String escapeDOSPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return "";
+        }
+
+        // Replace backslashes with double backslashes
+        String escapedPath = path.replace("\\", "\\\\");
+
+        // Replace spaces with escaped spaces
+        escapedPath = escapedPath.replace(" ", "\\ ");
+
+        return escapedPath;
+    }
+
+    public static String escapeFileDOSPath(String path) {
+        if (path == null || path.isEmpty()) {
+            return "";
+        }
+
+        // Replace backslashes with double backslashes
+        String escapedPath = path.replace("\\", "\\\\\\\\");
+
+        // Replace spaces with escaped spaces
+        escapedPath = escapedPath.replace(" ", "\\\\");
+
+        return escapedPath;
     }
 }

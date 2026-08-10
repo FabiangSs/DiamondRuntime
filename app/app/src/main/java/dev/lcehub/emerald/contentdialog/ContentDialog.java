@@ -2,6 +2,9 @@ package dev.lcehub.emerald.contentdialog;
 
 import android.app.Dialog;
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.util.SparseBooleanArray;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -14,25 +17,44 @@ import android.widget.ListView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.preference.PreferenceManager;
 
 import dev.lcehub.emerald.R;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.Callback;
+import dev.lcehub.emerald.core.UnitUtils;
 
 import java.util.ArrayList;
 
 public class ContentDialog extends Dialog {
-    private Runnable onConfirmCallback;
+    public Runnable onConfirmCallback;
     private Runnable onCancelCallback;
     private final View contentView;
+
+    private boolean isDarkMode;
 
     public ContentDialog(@NonNull Context context) {
         this(context, 0);
     }
 
+    private View inflatedLayout;
+
+    private static int getDialogStyle(Context context) {
+        return PreferenceManager.getDefaultSharedPreferences(context).getBoolean("dark_mode", true) ? R.style.ContentDialog_Dark : R.style.ContentDialog;
+    }
+
     public ContentDialog(@NonNull Context context, int layoutResId) {
-        super(context, R.style.ContentDialog);
+        super(context, getDialogStyle(context));
         contentView = LayoutInflater.from(context).inflate(R.layout.content_dialog, null);
+
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
+
+        contentView.setBackgroundResource(isDarkMode ? R.drawable.dialog_background_dark_blue : R.drawable.content_dialog_background);
+
+        if (getWindow() != null) getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+
 
         if (layoutResId > 0) {
             FrameLayout frameLayout = contentView.findViewById(R.id.FrameLayout);
@@ -54,6 +76,10 @@ public class ContentDialog extends Dialog {
         });
 
         setContentView(contentView);
+    }
+
+    public View getInflatedLayout() {
+        return inflatedLayout;
     }
 
     public View getContentView() {
@@ -107,30 +133,15 @@ public class ContentDialog extends Dialog {
     }
 
     public void setMessage(int msgResId) {
-        setMessage(msgResId, 0);
-    }
-
-    public void setMessage(int msgResId, int iconResId) {
-        setMessage(getContext().getString(msgResId), iconResId);
+        setMessage(getContext().getString(msgResId));
     }
 
     public void setMessage(String message) {
-        setMessage(message, 0);
-    }
-
-    public void setMessage(String message, int iconResId) {
         TextView tvMessage = findViewById(R.id.TVMessage);
-        ImageView imageView = findViewById(R.id.IVMessageIcon);
-        imageView.setVisibility(View.GONE);
 
         if (message != null && !message.isEmpty()) {
             tvMessage.setText(message);
             tvMessage.setVisibility(View.VISIBLE);
-
-            if (iconResId > 0) {
-                imageView.setImageResource(iconResId);
-                imageView.setVisibility(View.VISIBLE);
-            }
         }
         else {
             tvMessage.setText("");
@@ -140,7 +151,15 @@ public class ContentDialog extends Dialog {
 
     public static void alert(Context context, int msgResId, Runnable callback) {
         ContentDialog dialog = new ContentDialog(context);
-        dialog.setMessage(msgResId, R.drawable.content_dialog_type_alert);
+        dialog.setMessage(msgResId);
+        dialog.setOnConfirmCallback(callback);
+        dialog.findViewById(R.id.BTCancel).setVisibility(View.GONE);
+        dialog.show();
+    }
+
+    public static void alert(Context context, String msg, Runnable callback) {
+        ContentDialog dialog = new ContentDialog(context);
+        dialog.setMessage(msg);
         dialog.setOnConfirmCallback(callback);
         dialog.findViewById(R.id.BTCancel).setVisibility(View.GONE);
         dialog.show();
@@ -148,8 +167,14 @@ public class ContentDialog extends Dialog {
 
     public static void confirm(Context context, int msgResId, Runnable callback) {
         ContentDialog dialog = new ContentDialog(context);
-        dialog.setCancelable(false);
-        dialog.setMessage(msgResId, R.drawable.content_dialog_type_confirm);
+        dialog.setMessage(msgResId);
+        dialog.setOnConfirmCallback(callback);
+        dialog.show();
+    }
+
+    public static void confirm(Context context, String msg, Runnable callback) {
+        ContentDialog dialog = new ContentDialog(context);
+        dialog.setMessage(msg);
         dialog.setOnConfirmCallback(callback);
         dialog.show();
     }
@@ -158,6 +183,11 @@ public class ContentDialog extends Dialog {
         ContentDialog dialog = new ContentDialog(context);
 
         final EditText editText = dialog.findViewById(R.id.EditText);
+
+        SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context);
+        boolean isDarkMode = sharedPreferences.getBoolean("dark_mode", true);
+        applyDarkThemeToEditText(editText, isDarkMode);
+
         editText.setHint(R.string.untitled);
         if (defaultText != null) editText.setText(defaultText);
         editText.setVisibility(View.VISIBLE);
@@ -171,21 +201,28 @@ public class ContentDialog extends Dialog {
         dialog.show();
     }
 
-    public static void showSelectionList(Context context, int titleResId, final String[] items, boolean multiSelection, Callback<ArrayList<Integer>> callback) {
-        showSelectionList(context, context.getString(titleResId), items, multiSelection, callback);
+    private static void applyDarkThemeToEditText(EditText editText, boolean isDarkMode) {
+        if (isDarkMode) {
+            editText.setTextColor(Color.WHITE); // Set text color to white for dark theme
+            editText.setHintTextColor(Color.GRAY); // Set hint color to gray
+            editText.setBackgroundResource(R.drawable.edit_text_dark); // Custom dark background drawable
+        } else {
+            editText.setTextColor(Color.BLACK); // Default text color
+            editText.setHintTextColor(Color.GRAY); // Default hint color
+            editText.setBackgroundResource(R.drawable.edit_text); // Custom light background drawable
+        }
     }
 
-    public static void showSelectionList(Context context, String title, final String[] items, boolean multiSelection, Callback<ArrayList<Integer>> callback) {
+    public static void showMultipleChoiceList(Context context, int titleResId, final String[] items, Callback<ArrayList<Integer>> callback) {
         ContentDialog dialog = new ContentDialog(context);
 
         final ListView listView = dialog.findViewById(R.id.ListView);
         listView.getLayoutParams().width = AppUtils.getPreferredDialogWidth(context);
-        listView.setChoiceMode(multiSelection ? ListView.CHOICE_MODE_MULTIPLE : ListView.CHOICE_MODE_SINGLE);
-        int layoutResId = multiSelection ? R.layout.simple_list_item_multiple_choice : R.layout.simple_list_item_single_choice;
-        listView.setAdapter(new ArrayAdapter<>(context, layoutResId, items));
+        listView.setChoiceMode(ListView.CHOICE_MODE_MULTIPLE);
+        listView.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_list_item_multiple_choice, items));
         listView.setVisibility(View.VISIBLE);
 
-        dialog.setTitle(title);
+        dialog.setTitle(titleResId);
         dialog.setOnConfirmCallback(() -> {
             ArrayList<Integer> result = new ArrayList<>();
             SparseBooleanArray checkedItemPositions = listView.getCheckedItemPositions();
@@ -195,6 +232,27 @@ public class ContentDialog extends Dialog {
             callback.call(result);
         });
 
+        dialog.show();
+    }
+
+    public static void showSingleChoiceList(Context context, int titleResId, final String[] items, Callback<Integer> callback) {
+        ContentDialog dialog = new ContentDialog(context);
+        dialog.getContentView().findViewById(R.id.BTConfirm).setVisibility(View.GONE);
+
+        final ListView listView = dialog.findViewById(R.id.ListView);
+        LinearLayout.LayoutParams layoutParams = (LinearLayout.LayoutParams)listView.getLayoutParams();
+        layoutParams.width = AppUtils.getPreferredDialogWidth(context);
+        layoutParams.height = (int)UnitUtils.dpToPx(Math.min(items.length, 5) * 48);
+        layoutParams.weight = 0;
+        listView.setChoiceMode(ListView.CHOICE_MODE_NONE);
+        listView.setAdapter(new ArrayAdapter<>(context, R.layout.dialog_list_item_amoled, items));
+        listView.setVisibility(View.VISIBLE);
+        listView.setOnItemClickListener((parent, view, position, id) -> {
+            callback.call(position);
+            dialog.dismiss();
+        });
+
+        dialog.setTitle(titleResId);
         dialog.show();
     }
 }

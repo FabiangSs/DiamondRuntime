@@ -19,7 +19,7 @@
             android:layout_height="36dp"
             android:src="@drawable/icon_gamepad"
             android:layout_marginRight="8dp"
-            app:tint="?attr/colorPrimaryDark" />
+            app:tint="@color/colorPrimaryDark" />
 
         <LinearLayout
             android:layout_width="0dp"
@@ -31,15 +31,14 @@
                 android:id="@+id/TVTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="?attr/colorPrimaryVariant"
+                android:textColor="@color/colorPrimary"
                 android:maxLines="1"
                 android:ellipsize="end" />
 
             <TextView
                 android:id="@+id/TVSubtitle"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:textColor="?attr/colorSecondaryText" />
+                android:layout_height="wrap_content" />
         </LinearLayout>
 
         <ImageButton

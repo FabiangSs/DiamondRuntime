@@ -1,29 +1,34 @@
 package dev.lcehub.emerald;
 
-import android.content.Context;
 import android.graphics.BitmapFactory;
-import android.graphics.PointF;
+import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
 import android.widget.RadioGroup;
+import android.widget.SeekBar;
+import android.widget.ScrollView;
 import android.widget.Spinner;
 import android.widget.TextView;
 
-import androidx.appcompat.app.AppCompatActivity;
+import java.util.ArrayList;
+import java.util.List;
 
-import dev.lcehub.emerald.core.LocaleHelper;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.preference.PreferenceManager;
+
+import dev.lcehub.emerald.R;
+import dev.lcehub.emerald.contentdialog.ContentDialog;
+
 import dev.lcehub.emerald.inputcontrols.Binding;
 import dev.lcehub.emerald.inputcontrols.ControlElement;
 import dev.lcehub.emerald.inputcontrols.ControlsProfile;
@@ -34,8 +39,6 @@ import dev.lcehub.emerald.core.FileUtils;
 import dev.lcehub.emerald.core.UnitUtils;
 import dev.lcehub.emerald.widget.InputControlsView;
 import dev.lcehub.emerald.widget.NumberPicker;
-import dev.lcehub.emerald.widget.SeekBar;
-import dev.lcehub.emerald.winhandler.MIDIHandler;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -44,11 +47,9 @@ import java.util.Arrays;
 public class ControlsEditorActivity extends AppCompatActivity implements View.OnClickListener {
     private InputControlsView inputControlsView;
     private ControlsProfile profile;
-    private View toolbox;
 
     @Override
     public void onCreate(Bundle bundle) {
-        AppUtils.setActivityTheme(this);
         super.onCreate(bundle);
         AppUtils.hideSystemUI(this);
         setContentView(R.layout.controls_editor_activity);
@@ -67,102 +68,106 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         container.findViewById(R.id.BTAddElement).setOnClickListener(this);
         container.findViewById(R.id.BTRemoveElement).setOnClickListener(this);
         container.findViewById(R.id.BTElementSettings).setOnClickListener(this);
-
-        toolbox = container.findViewById(R.id.Toolbox);
-
-        final PointF startPoint = new PointF();
-        final boolean[] isActionDown = {false};
-        container.findViewById(R.id.BTMove).setOnTouchListener((v, event) -> {
-            switch (event.getAction()) {
-                case MotionEvent.ACTION_DOWN:
-                    startPoint.x = event.getX();
-                    startPoint.y = event.getY();
-                    isActionDown[0] = true;
-                    break;
-                case MotionEvent.ACTION_MOVE:
-                    if (isActionDown[0]) {
-                        float newX = toolbox.getX() + (event.getX() - startPoint.x);
-                        float newY = toolbox.getY() + (event.getY() - startPoint.y);
-                        moveToolbox(newX, newY);
-                    }
-                    break;
-                case MotionEvent.ACTION_UP:
-                    isActionDown[0] = false;
-                    break;
-            }
-            return true;
-        });
+        container.findViewById(R.id.BTSchemeColor).setOnClickListener(this);
     }
 
     @Override
-    protected void attachBaseContext(Context newBase) {
-        super.attachBaseContext(LocaleHelper.setSystemLocale(newBase));
-    }
-
-    private void moveToolbox(float x, float y) {
-        final int padding = (int)UnitUtils.dpToPx(8);
-        ViewGroup parent = (ViewGroup)toolbox.getParent();
-        int width = toolbox.getWidth();
-        int height = toolbox.getHeight();
-        int parentWidth = parent.getWidth();
-        int parentHeight = parent.getHeight();
-        x = Mathf.clamp(x, padding, parentWidth - padding - width);
-        y = Mathf.clamp(y, padding, parentHeight - padding - height);
-        toolbox.setX(x);
-        toolbox.setY(y);
+    protected void onResume() {
+        super.onResume();
+        // Use a handler delay to ensure the activity is fully visible and interactive
+        new android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(() -> {
+            SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
+            if (!prefs.getBoolean("mix_warning_shown_v4", false)) {
+                ContentDialog.alert(this, R.string.warning_gamepad_mouse_mix, () -> {
+                    prefs.edit().putBoolean("mix_warning_shown_v4", true).apply();
+                });
+            }
+        }, 500);
     }
 
     @Override
     public void onClick(View v) {
-        int id = v.getId();
-        if (id == R.id.BTAddElement) {
+        int viewId = v.getId();
+        if (viewId == R.id.BTAddElement) {
             if (!inputControlsView.addElement()) {
                 AppUtils.showToast(this, R.string.no_profile_selected);
             }
-        } else if (id == R.id.BTRemoveElement) {
+        } else if (viewId == R.id.BTRemoveElement) {
             if (!inputControlsView.removeElement()) {
                 AppUtils.showToast(this, R.string.no_control_element_selected);
             }
-        } else if (id == R.id.BTElementSettings) {
+        } else if (viewId == R.id.BTElementSettings) {
             ControlElement selectedElement = inputControlsView.getSelectedElement();
             if (selectedElement != null) {
                 showControlElementSettings(v);
             }
             else AppUtils.showToast(this, R.string.no_control_element_selected);
+        } else if (viewId == R.id.BTSchemeColor) {
+            showSchemeColorPicker(v);
         }
+    }
+
+    // Cor aplicada ao esquema inteiro: todo elemento sem cor própria (customColor == 0)
+    // passa a usar essa cor em vez do azul padrão. Reaproveita a mesma paleta/lógica de
+    // seleção usada no popup de cada elemento (loadColorSwatches).
+    private void showSchemeColorPicker(View anchorView) {
+        LinearLayout popupContent = new LinearLayout(this);
+        popupContent.setOrientation(LinearLayout.VERTICAL);
+        int pad = (int)UnitUtils.dpToPx(12);
+        popupContent.setPadding(pad, pad, pad, pad);
+
+        TextView title = new TextView(this);
+        title.setText("Scheme Color");
+        title.setTextColor(0xffffffff);
+        title.setTextSize(14);
+        popupContent.addView(title);
+
+        TextView subtitle = new TextView(this);
+        subtitle.setText("Applies to every control that doesn't have its own custom color");
+        subtitle.setTextColor(0xffaaaaaa);
+        subtitle.setTextSize(11);
+        LinearLayout.LayoutParams subtitleParams = new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        subtitleParams.topMargin = (int)UnitUtils.dpToPx(2);
+        subtitleParams.bottomMargin = (int)UnitUtils.dpToPx(8);
+        subtitle.setLayoutParams(subtitleParams);
+        popupContent.addView(subtitle);
+
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        final LinearLayout llSchemeColorList = new LinearLayout(this);
+        llSchemeColorList.setOrientation(LinearLayout.VERTICAL);
+        llSchemeColorList.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        scrollView.addView(llSchemeColorList);
+        popupContent.addView(scrollView);
+
+        loadColorSwatches(llSchemeColorList, profile.getThemeColor(), color -> {
+            profile.setThemeColor(color);
+            profile.save();
+            inputControlsView.invalidate();
+        });
+
+        PopupWindow popupWindow = AppUtils.showPopupWindow(anchorView, popupContent, 320, 0);
     }
 
     private void showControlElementSettings(View anchorView) {
         final ControlElement element = inputControlsView.getSelectedElement();
-        final View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);
+        View view = LayoutInflater.from(this).inflate(R.layout.control_element_settings, null);
 
         final Runnable updateLayout = () -> {
             ControlElement.Type type = element.getType();
             view.findViewById(R.id.LLShape).setVisibility(View.GONE);
             view.findViewById(R.id.CBToggleSwitch).setVisibility(View.GONE);
-            view.findViewById(R.id.CBMouseMoveMode).setVisibility(View.GONE);
             view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.GONE);
             view.findViewById(R.id.LLRangeOptions).setVisibility(View.GONE);
-            view.findViewById(R.id.LLMIDIKeyOptions).setVisibility(View.GONE);
-            view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.GONE);
 
-            switch (type) {
-                case BUTTON:
-                    view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
-                    view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
-                    view.findViewById(R.id.CBMouseMoveMode).setVisibility(View.VISIBLE);
-                    view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.VISIBLE);
-                    break;
-                case RANGE_BUTTON:
-                    view.findViewById(R.id.LLRangeOptions).setVisibility(View.VISIBLE);
-                    break;
-                case MIDI_KEY:
-                    view.findViewById(R.id.LLMIDIKeyOptions).setVisibility(View.VISIBLE);
-                    break;
-                case RADIAL_MENU:
-                    ((NumberPicker)view.findViewById(R.id.NPBindings)).setValue(element.getBindingCount());
-                    view.findViewById(R.id.LLRadialMenuOptions).setVisibility(View.VISIBLE);
-                    break;
+            if (type == ControlElement.Type.BUTTON) {
+                view.findViewById(R.id.LLShape).setVisibility(View.VISIBLE);
+                view.findViewById(R.id.CBToggleSwitch).setVisibility(View.VISIBLE);
+                view.findViewById(R.id.LLCustomTextIcon).setVisibility(View.VISIBLE);
+            }
+            else if (type == ControlElement.Type.RANGE_BUTTON) {
+                view.findViewById(R.id.LLRangeOptions).setVisibility(View.VISIBLE);
             }
 
             loadBindingSpinners(element, view);
@@ -171,7 +176,6 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         loadTypeSpinner(element, view.findViewById(R.id.SType), updateLayout);
         loadShapeSpinner(element, view.findViewById(R.id.SShape));
         loadRangeSpinner(element, view.findViewById(R.id.SRange));
-        loadNoteSpinner(element, view.findViewById(R.id.SNote));
 
         RadioGroup rgOrientation = view.findViewById(R.id.RGOrientation);
         rgOrientation.check(element.getOrientation() == 1 ? R.id.RBVertical : R.id.RBHorizontal);
@@ -189,30 +193,28 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             inputControlsView.invalidate();
         });
 
-        NumberPicker npBindings = view.findViewById(R.id.NPBindings);
-        npBindings.setValue(element.getBindingCount());
-        npBindings.setOnValueChangeListener((numberPicker, value) -> {
-            element.setBindingCount(value);
-            loadBindingSpinners(element, view);
-            profile.save();
-            inputControlsView.invalidate();
-        });
-
+        final TextView tvScale = view.findViewById(R.id.TVScale);
         SeekBar sbScale = view.findViewById(R.id.SBScale);
-        sbScale.setOnValueChangeListener((seekBar, value) -> {
-            element.setScale(value / 100.0f);
-            profile.save();
-            inputControlsView.invalidate();
-        });
-        sbScale.setValue(element.getScale() * 100);
+        sbScale.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvScale.setText(progress+"%");
+                if (fromUser) {
+                    progress = (int)Mathf.roundTo(progress, 5);
+                    seekBar.setProgress(progress);
+                    element.setScale(progress / 100.0f);
+                    profile.save();
+                    inputControlsView.invalidate();
+                }
+            }
 
-        SeekBar sbOpacity = view.findViewById(R.id.SBOpacity);
-        sbOpacity.setOnValueChangeListener((seekBar, value) -> {
-            element.setOpacity(value / 100.0f);
-            profile.save();
-            inputControlsView.invalidate();
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
         });
-        sbOpacity.setValue(element.getOpacity() * 100);
+        sbScale.setProgress((int)(element.getScale() * 100));
 
         CheckBox cbToggleSwitch = view.findViewById(R.id.CBToggleSwitch);
         cbToggleSwitch.setChecked(element.isToggleSwitch());
@@ -221,11 +223,40 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             profile.save();
         });
 
+        final TextView tvOpacity = view.findViewById(R.id.TVOpacity);
+        SeekBar sbOpacity = view.findViewById(R.id.SBOpacity);
+        sbOpacity.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                tvOpacity.setText(progress+"%");
+                if (fromUser) {
+                    element.setOpacity(progress / 100f);
+                    profile.save();
+                    inputControlsView.invalidate();
+                }
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {}
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+        sbOpacity.setProgress((int)(element.getOpacity() * 100));
+
+        final LinearLayout llColorList = view.findViewById(R.id.LLColorList);
+        loadColorSwatches(llColorList, element.getCustomColor(), color -> {
+            element.setCustomColor(color);
+            profile.save();
+            inputControlsView.invalidate();
+        });
+
         CheckBox cbMouseMoveMode = view.findViewById(R.id.CBMouseMoveMode);
         cbMouseMoveMode.setChecked(element.isMouseMoveMode());
         cbMouseMoveMode.setOnCheckedChangeListener((buttonView, isChecked) -> {
             element.setMouseMoveMode(isChecked);
             profile.save();
+            inputControlsView.invalidate();
         });
 
         final EditText etCustomText = view.findViewById(R.id.ETCustomText);
@@ -237,35 +268,107 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
         PopupWindow popupWindow = AppUtils.showPopupWindow(anchorView, view, 340, 0);
         popupWindow.setOnDismissListener(() -> {
+            String text = etCustomText.getText().toString().trim();
             byte iconId = 0;
-            if (element.getType() == ControlElement.Type.BUTTON) {
-                for (int i = 0; i < llIconList.getChildCount(); i++) {
-                    View child = llIconList.getChildAt(i);
-                    if (child.isSelected()) {
-                        iconId = (byte)child.getTag();
-                        break;
-                    }
+            for (int i = 0; i < llIconList.getChildCount(); i++) {
+                View child = llIconList.getChildAt(i);
+                if (child.isSelected()) {
+                    iconId = (byte)child.getTag();
+                    break;
                 }
-
-                String text = etCustomText.getText().toString().trim();
-                element.setText(text);
             }
 
+            element.setText(text);
             element.setIconId(iconId);
             profile.save();
             inputControlsView.invalidate();
         });
     }
 
-    private void loadTypeSpinner(final ControlElement element, Spinner spinner, final Runnable callback) {
+    // Paleta de cores pra "temar" um controle individualmente. 0 = "padrão" (segue a
+    // cor normal do tema, hoje o azul do Winlator); os demais são cores fixas.
+    private interface OnColorSelectedListener {
+        void onColorSelected(int color);
+    }
+
+    private static final int SWATCHES_PER_ROW = 8;
+
+    // Paleta ampliada, organizada por matiz.
+    // 0 = "padrão do app" (mesmo azul do Winlator), representado visualmente pelo azul.
+    private static final int[] PALETTE_COLORS = {
+        // Padrão + escala de cinza
+        0, 0xffffffff, 0xffdddddd, 0xffaaaaaa, 0xff777777, 0xff444444, 0xff222222, 0xff000000,
+        // Vermelhos
+        0xffff3b30, 0xffff6961, 0xffff453a, 0xffcc0000, 0xff800000, 0xff4d0000, 0xffff8080, 0xffffb3b3,
+        // Laranjas / Amarelos
+        0xffff9500, 0xffff6000, 0xfffe9f0d, 0xffffcc00, 0xffffd60a, 0xffffea00, 0xffffb347, 0xffffdca5,
+        // Verdes
+        0xff34c759, 0xff30d158, 0xff4cd964, 0xff00b050, 0xff2e8b57, 0xff006400, 0xffa8e6cf, 0xffd4edda,
+        // Cianos / Teals
+        0xff5ac8fa, 0xff32ade6, 0xff00b4d8, 0xff0096c7, 0xff00758a, 0xff004c5a, 0xffb2ebf2, 0xffe0f7fa,
+        // Azuis
+        0xff007aff, 0xff0a84ff, 0xff2184ff, 0xff1a56db, 0xff003f8f, 0xff001a66, 0xffbed6f8, 0xffdce9ff,
+        // Roxos / Violetas
+        0xffaf52de, 0xffbf5af2, 0xff9b59b6, 0xff6e3fa3, 0xff4a0e8f, 0xff2d0066, 0xffd7b4f3, 0xffede0f8,
+        // Rosas / Magentas
+        0xffff2d92, 0xffff375f, 0xffff6ab0, 0xffe91e8c, 0xffad1457, 0xff6a0032, 0xffffb3d9, 0xffffdcef,
+    };
+
+    private void loadColorSwatches(final LinearLayout parent, int selectedColor, final OnColorSelectedListener listener) {
+        parent.removeAllViews();
+        int size = (int)UnitUtils.dpToPx(26);
+        int margin = (int)UnitUtils.dpToPx(2);
+        int strokeWidth = (int)UnitUtils.dpToPx(2);
+
+        // Guarda todos os swatches criados pra poder limpar a seleção entre eles.
+        final List<View> allSwatches = new ArrayList<>();
+
+        for (int rowStart = 0; rowStart < PALETTE_COLORS.length; rowStart += SWATCHES_PER_ROW) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+            parent.addView(row);
+
+            int rowEnd = Math.min(rowStart + SWATCHES_PER_ROW, PALETTE_COLORS.length);
+            for (int ci = rowStart; ci < rowEnd; ci++) {
+                final int color = PALETTE_COLORS[ci];
+                final View swatch = new View(this);
+                LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(size, size);
+                params.setMargins(margin, margin, margin, margin);
+                swatch.setLayoutParams(params);
+                swatch.setTag(color);
+                boolean isSelected = color == selectedColor;
+                swatch.setSelected(isSelected);
+
+                GradientDrawable bg = new GradientDrawable();
+                bg.setShape(GradientDrawable.OVAL);
+                bg.setColor(color != 0 ? color : 0xffffffff);
+                bg.setStroke(isSelected ? strokeWidth : 0, 0xffffffff);
+                swatch.setBackground(bg);
+
+                swatch.setOnClickListener(v -> {
+                    for (View s : allSwatches) {
+                        s.setSelected(false);
+                        ((GradientDrawable)s.getBackground()).setStroke(0, 0xffffffff);
+                    }
+                    swatch.setSelected(true);
+                    ((GradientDrawable)swatch.getBackground()).setStroke(strokeWidth, 0xffffffff);
+                    listener.onColorSelected(color);
+                });
+
+                allSwatches.add(swatch);
+                row.addView(swatch);
+            }
+        }
+    }
+
+    private void loadTypeSpinner(final ControlElement element, Spinner spinner, Runnable callback) {
         spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, ControlElement.Type.names()));
         spinner.setSelection(element.getType().ordinal(), false);
         spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override
             public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                ControlElement.Type newType = ControlElement.Type.values()[position];
-                if (newType == element.getType()) return;
-                element.setType(newType);
+                element.setType(ControlElement.Type.values()[position]);
                 profile.save();
                 callback.run();
                 inputControlsView.invalidate();
@@ -298,12 +401,8 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
 
         ControlElement.Type type = element.getType();
         if (type == ControlElement.Type.BUTTON) {
-            byte first = element.getFirstBindingIndex();
-            for (byte i = 0, count = 0; i < element.getBindingCount(); i++) {
-                if (i <= first || element.getBindingAt(i) != Binding.NONE) {
-                    loadBindingSpinner(element, container, i, count++ == 0 ? R.string.binding : 0);
-                }
-            }
+            loadBindingSpinner(element, container, 0, R.string.binding);
+            loadBindingSpinner(element, container, 1, R.string.binding_secondary);
         }
         else if (type == ControlElement.Type.D_PAD || type == ControlElement.Type.STICK || type == ControlElement.Type.TRACKPAD) {
             loadBindingSpinner(element, container, 0, R.string.binding_up);
@@ -311,33 +410,13 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             loadBindingSpinner(element, container, 2, R.string.binding_down);
             loadBindingSpinner(element, container, 3, R.string.binding_left);
         }
-        else if (type == ControlElement.Type.RADIAL_MENU) {
-            for (byte i = 0; i < element.getBindingCount(); i++) loadBindingSpinner(element, container, i, 0);
-        }
     }
 
-    private void loadBindingSpinner(final ControlElement element, final LinearLayout container, final int index, int titleResId) {
+    private void loadBindingSpinner(final ControlElement element, LinearLayout container, final int index, int titleResId) {
         View view = LayoutInflater.from(this).inflate(R.layout.binding_field, container, false);
-
-        LinearLayout titleBar = view.findViewById(R.id.LLTitleBar);
-        if (titleResId > 0) {
-            titleBar.setVisibility(View.VISIBLE);
-            ((TextView)view.findViewById(R.id.TVTitle)).setText(titleResId);
-        }
-        else titleBar.setVisibility(View.GONE);
-
+        ((TextView)view.findViewById(R.id.TVTitle)).setText(titleResId);
         final Spinner sBindingType = view.findViewById(R.id.SBindingType);
         final Spinner sBinding = view.findViewById(R.id.SBinding);
-
-        ControlElement.Type type = element.getType();
-        if (type == ControlElement.Type.BUTTON || type == ControlElement.Type.RADIAL_MENU) {
-            ImageButton addButton = view.findViewById(R.id.BTAdd);
-            addButton.setVisibility(View.VISIBLE);
-            addButton.setOnClickListener((v) -> {
-                int nextIndex = container.getChildCount();
-                if (nextIndex < element.getBindingCount()) loadBindingSpinner(element, container, nextIndex, 0);
-            });
-        }
 
         Runnable update = () -> {
             String[] bindingEntries = null;
@@ -425,23 +504,6 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
         });
     }
 
-    private void loadNoteSpinner(final ControlElement element, Spinner spinner) {
-        String[] notes = MIDIHandler.getNotes();
-        spinner.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, notes));
-        AppUtils.setSpinnerSelectionFromValue(spinner, element.getText());
-        spinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                element.setText(notes[position]);
-                profile.save();
-                inputControlsView.invalidate();
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {}
-        });
-    }
-
     private void loadIcons(final LinearLayout parent, byte selectedId) {
         byte[] iconIds = new byte[0];
         try {
@@ -481,4 +543,11 @@ public class ControlsEditorActivity extends AppCompatActivity implements View.On
             parent.addView(imageView);
         }
     }
+
+    @Override
+    public void onBackPressed() {
+        super.onBackPressed();
+        overridePendingTransition(R.anim.slide_in_down, R.anim.slide_out_up);  // Custom slide animations for exiting
+    }
+
 }

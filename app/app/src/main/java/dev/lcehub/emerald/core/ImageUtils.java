@@ -3,8 +3,6 @@ package dev.lcehub.emerald.core;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.graphics.BitmapRegionDecoder;
-import android.graphics.Rect;
 import android.net.Uri;
 
 import androidx.annotation.IntRange;
@@ -13,7 +11,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.ByteBuffer;
 
 public abstract class ImageUtils {
     private static int calculateInSampleSize(BitmapFactory.Options options, int maxSize) {
@@ -85,41 +82,6 @@ public abstract class ImageUtils {
         return getBitmapFromUri(context, uri, options);
     }
 
-    public static Bitmap getBitmapFromAsset(Context context, String filePath, Rect rect, BitmapFactory.Options options) {
-        InputStream is = null;
-        Bitmap bitmap = null;
-        try {
-            is = context.getAssets().open(filePath);
-            if (rect != null) {
-                bitmap = BitmapRegionDecoder.newInstance(is, false).decodeRegion(rect, options);
-            }
-            else {
-                if (options != null) {
-                    bitmap = BitmapFactory.decodeStream(is, null, options);
-                }
-                else bitmap = BitmapFactory.decodeStream(is);
-            }
-        }
-        catch (IOException e) {
-            e.printStackTrace();
-        }
-        finally {
-            try {
-                if (is != null) is.close();
-            }
-            catch (IOException e) {}
-        }
-        return bitmap;
-    }
-
-    public static Bitmap getBitmapFromAsset(Context context, String filePath) {
-        return getBitmapFromAsset(context, filePath, null, null);
-    }
-
-    public static Bitmap getBitmapFromAsset(Context context, String filePath, BitmapFactory.Options options) {
-        return getBitmapFromAsset(context, filePath, null, options);
-    }
-
     public static boolean save(Bitmap bitmap, File output, Bitmap.CompressFormat compressFormat, @IntRange(from = 0, to = 100) int quality) {
         FileOutputStream fos = null;
         try {
@@ -141,24 +103,5 @@ public abstract class ImageUtils {
             }
         }
         return false;
-    }
-
-    public static boolean isPNGData(ByteBuffer data) {
-        int position = data.position();
-        if (Byte.toUnsignedInt(data.get(position + 0)) != 137 ||
-            data.get(position + 1) != 'P' || data.get(position + 2) != 'N' || data.get(position + 3) != 'G') return false;
-        return true;
-    }
-
-    public static int[] getScaledSize(float oldWidth, float oldHeight, float newWidth, float newHeight) {
-        if (newWidth > 0 && newHeight == 0) {
-            newHeight = (newWidth / oldWidth) * oldHeight;
-            newWidth = (newHeight / oldHeight) * oldWidth;
-        }
-        else if (newWidth == 0 && newHeight > 0) {
-            newWidth = (newHeight / oldHeight) * oldWidth;
-            newHeight = (newWidth / oldWidth) * oldHeight;
-        }
-        return new int[]{(int)newWidth, (int)newHeight};
     }
 }

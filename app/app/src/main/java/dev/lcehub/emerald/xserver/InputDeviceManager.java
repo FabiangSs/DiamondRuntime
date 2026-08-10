@@ -1,7 +1,5 @@
 package dev.lcehub.emerald.xserver;
 
-import dev.lcehub.emerald.core.Bitmask;
-import dev.lcehub.emerald.renderer.FullscreenTransformation;
 import dev.lcehub.emerald.winhandler.MouseEventFlags;
 import dev.lcehub.emerald.winhandler.WinHandler;
 import dev.lcehub.emerald.xserver.events.ButtonPress;
@@ -60,7 +58,7 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
     }
 
     private void updatePointWindow() {
-        Window pointWindow = xServer.windowManager.findPointWindow(xServer.pointer.getClampedX(), xServer.pointer.getClampedY(), true);
+        Window pointWindow = xServer.windowManager.findPointWindow(xServer.pointer.getClampedX(), xServer.pointer.getClampedY());
         this.pointWindow = pointWindow != null ? pointWindow : xServer.windowManager.rootWindow;
     }
 
@@ -102,6 +100,11 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
     public void sendEnterLeaveNotify(Window windowA, Window windowB, PointerWindowEvent.Mode mode) {
         if (windowA == windowB) return;
+        short x = xServer.pointer.getX();
+        short y = xServer.pointer.getY();
+
+        short[] localPointA = windowA.rootPointToLocal(x, y);
+        short[] localPointB = windowB.rootPointToLocal(x, y);
 
         boolean sameScreenAndFocus = windowB.isAncestorOf(xServer.windowManager.getFocusedWindow());
         PointerWindowEvent.Detail detailA = PointerWindowEvent.Detail.NONLINEAR;
@@ -117,29 +120,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         }
 
         Bitmask keyButMask = getKeyButMask();
-
-        short xA = xServer.pointer.getX();
-        short yA = xServer.pointer.getY();
-        FullscreenTransformation fullscreenTransformationB = windowB.getFullscreenTransformation();
-        if (fullscreenTransformationB != null) {
-            short[] transformedPoint = fullscreenTransformationB.transformPointerCoords(xA, yA);
-            xA = transformedPoint[0];
-            yA = transformedPoint[1];
-        }
-        short[] localPointA = windowA.rootPointToLocal(xA, yA);
-
-        short xB = xServer.pointer.getX();
-        short yB = xServer.pointer.getY();
-        FullscreenTransformation fullscreenTransformationA = windowA.getFullscreenTransformation();
-        if (fullscreenTransformationA != null) {
-            short[] transformedPoint = fullscreenTransformationA.transformPointerCoords(xB, yB);
-            xB = transformedPoint[0];
-            yB = transformedPoint[1];
-        }
-        short[] localPointB = windowB.rootPointToLocal(xB, yB);
-
-        sendEvent(windowA, Event.LEAVE_WINDOW, new LeaveNotify(detailA, xServer.windowManager.rootWindow, windowA, null, xA, yA, localPointA[0], localPointA[1], keyButMask, mode, sameScreenAndFocus));
-        sendEvent(windowB, Event.ENTER_WINDOW, new EnterNotify(detailB, xServer.windowManager.rootWindow, windowB, null, xB, yB, localPointB[0], localPointB[1], keyButMask, mode, sameScreenAndFocus));
+        sendEvent(windowA, Event.LEAVE_WINDOW, new LeaveNotify(detailA, xServer.windowManager.rootWindow, windowA, null, x, y, localPointA[0], localPointA[1], keyButMask, mode, sameScreenAndFocus));
+        sendEvent(windowB, Event.ENTER_WINDOW, new EnterNotify(detailB, xServer.windowManager.rootWindow, windowB, null, x, y, localPointB[0], localPointB[1], keyButMask, mode, sameScreenAndFocus));
     }
 
     @Override
@@ -162,15 +144,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
                 short x = xServer.pointer.getX();
                 short y = xServer.pointer.getY();
-
-                FullscreenTransformation fullscreenTransformation = grabWindow.getFullscreenTransformation();
-                if (fullscreenTransformation != null) {
-                    short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
-                    x = transformedPoint[0];
-                    y = transformedPoint[1];
-                }
-
                 short[] localPoint = grabWindow.rootPointToLocal(x, y);
+
                 Window child = grabWindow.isAncestorOf(pointWindow) ? pointWindow : null;
                 grabWindow.sendEvent(Event.BUTTON_PRESS, new ButtonPress(button.code(), xServer.windowManager.rootWindow, grabWindow, child, x, y, localPoint[0], localPoint[1], eventMask));
             }
@@ -193,15 +168,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
                 short x = xServer.pointer.getX();
                 short y = xServer.pointer.getY();
-
-                FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
-                if (fullscreenTransformation != null) {
-                    short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
-                    x = transformedPoint[0];
-                    y = transformedPoint[1];
-                }
-
                 short[] localPoint = eventWindow.rootPointToLocal(x, y);
+
                 Window child = eventWindow.isAncestorOf(pointWindow) ? pointWindow : null;
                 ButtonRelease buttonRelease = new ButtonRelease(button.code(), xServer.windowManager.rootWindow, eventWindow, child, x, y, localPoint[0], localPoint[1], eventMask);
                 sendEvent(window, eventMask, buttonRelease);
@@ -222,15 +190,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
 
         if (grabWindow != null || window != null) {
             Window eventWindow = window != null ? window : grabWindow;
-
-            FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
-            if (fullscreenTransformation != null) {
-                short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
-                x = transformedPoint[0];
-                y = transformedPoint[1];
-            }
-
             short[] localPoint = eventWindow.rootPointToLocal(x, y);
+
             Window child = eventWindow.isAncestorOf(pointWindow) ? pointWindow : null;
             sendEvent(window, eventMask, new MotionNotify(false, xServer.windowManager.rootWindow, eventWindow, child, x, y, localPoint[0], localPoint[1], getKeyButMask()));
         }
@@ -258,15 +219,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         Bitmask keyButMask = getKeyButMask();
         short x = xServer.pointer.getX();
         short y = xServer.pointer.getY();
-
-        FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
-        if (fullscreenTransformation != null) {
-            short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
-            x = transformedPoint[0];
-            y = transformedPoint[1];
-        }
-
         short[] localPoint = eventWindow.rootPointToLocal(x, y);
+
         if (keysym != 0 && !xServer.keyboard.hasKeysym(keycode, keysym)) {
             xServer.keyboard.setKeysyms(keycode, keysym, keysym);
             eventWindow.sendEvent(new MappingNotify(MappingNotify.Request.KEYBOARD, keycode, 1));
@@ -297,15 +251,8 @@ public class InputDeviceManager implements Pointer.OnPointerMotionListener, Keyb
         Bitmask keyButMask = getKeyButMask();
         short x = xServer.pointer.getX();
         short y = xServer.pointer.getY();
-
-        FullscreenTransformation fullscreenTransformation = eventWindow.getFullscreenTransformation();
-        if (fullscreenTransformation != null) {
-            short[] transformedPoint = fullscreenTransformation.transformPointerCoords(x, y);
-            x = transformedPoint[0];
-            y = transformedPoint[1];
-        }
-
         short[] localPoint = eventWindow.rootPointToLocal(x, y);
+
         eventWindow.sendEvent(Event.KEY_RELEASE, new KeyRelease(keycode, xServer.windowManager.rootWindow, eventWindow, child, x, y, localPoint[0], localPoint[1], keyButMask));
     }
 
