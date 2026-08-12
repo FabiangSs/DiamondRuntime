@@ -618,7 +618,7 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
             textView.setTextColor(Color.WHITE);
             textView.setBackgroundColor(Color.BLACK);
         } else {
-            textView.setTextColor(Color.parseColor("#0055ff"));
+            textView.setTextColor(Color.parseColor("#ffff55"));
             textView.setBackgroundResource(R.color.window_background_color);
         }
     }
@@ -773,7 +773,7 @@ public class ShortcutSettingsDialog extends ContentDialog implements DXVKConfigD
         row.setPadding(dp(12), 0, dp(12), 0);
         ImageView icon = new ImageView(getContext());
         icon.setImageResource(iconResId);
-        icon.setColorFilter(Color.parseColor("#0055ff"));
+        icon.setColorFilter(Color.parseColor("#ffff55"));
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(26), dp(26));
         iconParams.setMargins(0, 0, dp(12), 0);
         row.addView(icon, iconParams);

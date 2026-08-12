@@ -33,13 +33,17 @@
                 android:layout_height="wrap_content"
                 android:text="Winlator"
                 android:textColor="#FFFFFF"
-                android:textSize="28sp" />
+                android:textSize="28sp"
+                android:shadowColor="@color/lce_text_shadow"
+                android:shadowDx="1"
+                android:shadowDy="1"
+                android:shadowRadius="0" />
 
             <TextView
                 android:id="@+id/TVHeaderVersion"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#0055FF"
+                android:textColor="#FFFF55"
                 android:textSize="12sp" />
         </LinearLayout>
     </LinearLayout>

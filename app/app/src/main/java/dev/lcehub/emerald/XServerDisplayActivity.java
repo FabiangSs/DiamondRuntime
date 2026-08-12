@@ -1472,8 +1472,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (item == null) continue;
             if (itemId == activeId) {
                 GradientDrawable background = new GradientDrawable();
-                background.setColor(Color.parseColor("#0F2D42"));
-                background.setStroke((int) (1.1f * density), Color.parseColor("#0288D1"));
+                background.setColor(Color.parseColor("#1a1a00"));
+                background.setStroke((int) (1.1f * density), Color.parseColor("#FFFF55"));
                 background.setCornerRadius(density * 15);
                 item.setBackground(background);
                 item.animate().scaleX(1.025f).scaleY(1.025f).setDuration(105).start();
@@ -1517,7 +1517,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             @Override
             public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                 TextView view = (TextView) super.getView(position, convertView, parent);
-                view.setTextColor(Color.parseColor("#EEF7FF"));
+                view.setTextColor(Color.parseColor("#ffffff"));
                 view.setTextSize(14);
                 view.setSingleLine(true);
                 return view;
@@ -1526,8 +1526,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
             @Override
             public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
                 TextView view = (TextView) super.getDropDownView(position, convertView, parent);
-                view.setTextColor(Color.parseColor("#EEF7FF"));
-                view.setBackgroundColor(Color.parseColor("#0E2231"));
+                view.setTextColor(Color.parseColor("#ffffff"));
+                view.setBackgroundColor(Color.parseColor("#0d0d0d"));
                 view.setTextSize(14);
                 return view;
             }

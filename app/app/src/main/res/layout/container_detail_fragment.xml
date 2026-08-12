@@ -31,7 +31,7 @@
                 app:tabIndicatorColor="@color/colorAccent"
                 app:tabMode="scrollable"
                 app:tabSelectedTextColor="@color/colorAccent"
-                app:tabTextColor="#B8C2D1">
+                app:tabTextColor="#909090">
 
                 <com.google.android.material.tabs.TabItem
                     android:layout_width="match_parent"

@@ -29,7 +29,7 @@
                 android:layout_width="25dp"
                 android:layout_height="25dp"
                 android:src="@drawable/ic_sidebar_gpu"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <LinearLayout
@@ -45,7 +45,7 @@
                 android:layout_width="25dp"
                 android:layout_height="25dp"
                 android:src="@drawable/ic_sidebar_effects"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <LinearLayout
@@ -61,7 +61,7 @@
                 android:layout_width="26dp"
                 android:layout_height="26dp"
                 android:src="@drawable/icon_mouse"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <LinearLayout
@@ -77,7 +77,7 @@
                 android:layout_width="25dp"
                 android:layout_height="25dp"
                 android:src="@drawable/ic_sidebar_performance"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <View
@@ -100,7 +100,7 @@
                 android:layout_width="25dp"
                 android:layout_height="25dp"
                 android:src="@drawable/ic_sidebar_task_manager"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <LinearLayout
@@ -115,7 +115,7 @@
                 android:layout_width="25dp"
                 android:layout_height="25dp"
                 android:src="@drawable/icon_pause"
-                app:tint="#0055ff" />
+                app:tint="#FFFF55" />
         </LinearLayout>
 
         <TextView
@@ -229,7 +229,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Upscaler Mode"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="13sp" />
                         <Spinner
                             android:id="@+id/SPUpscalerMode"
@@ -243,7 +243,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:text="Sharpness"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:textSize="13sp" />
                     <dev.lcehub.emerald.widget.SeekBar
                         android:id="@+id/SBSharpness"
@@ -270,7 +270,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Post Effect"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="13sp" />
                         <Spinner
                             android:id="@+id/SPPostFXMode"
@@ -322,7 +322,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Save Preset"
-                        android:textColor="#DDF6FF"
+                        android:textColor="#FFFF55"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -469,7 +469,7 @@
                             android:clickable="true"
                             android:focusable="true"
                             android:src="@drawable/icon_settings"
-                            app:tint="#0066FF" />
+                            app:tint="#FFFF55" />
                     </LinearLayout>
                     <Switch
                         android:id="@+id/SWShowTouchscreenControls"
@@ -508,7 +508,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Touch Controls Opacity"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                     <dev.lcehub.emerald.widget.SeekBar
@@ -648,7 +648,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="HUD Metrics"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:textSize="13sp"
                         android:textStyle="bold" />
 
@@ -747,7 +747,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="HUD Size"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                     <dev.lcehub.emerald.widget.SeekBar
@@ -762,7 +762,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
                         android:text="HUD Opacity"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:textSize="13sp"
                         android:textStyle="bold" />
                     <dev.lcehub.emerald.widget.SeekBar
@@ -786,7 +786,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Reset HUD"
-                        android:textColor="#DDF6FF"
+                        android:textColor="#FFFF55"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -808,12 +808,12 @@
                         android:layout_height="24dp"
                         android:layout_marginEnd="8dp"
                         android:src="@drawable/ic_sidebar_logs"
-                        app:tint="#DDF6FF" />
+                        app:tint="#FFFF55" />
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Show Logs"
-                        android:textColor="#DDF6FF"
+                        android:textColor="#FFFF55"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>
@@ -854,7 +854,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="CPU"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
@@ -863,7 +863,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:text="--%"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="18sp"
                             android:textStyle="bold" />
                     </LinearLayout>
@@ -880,7 +880,7 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:text="Memory"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="12sp"
                             android:textStyle="bold" />
                         <TextView
@@ -889,7 +889,7 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:text="-- / --"
-                            android:textColor="#0055ff"
+                            android:textColor="#FFFF55"
                             android:textSize="14sp"
                             android:textStyle="bold"
                             android:singleLine="true" />
@@ -927,7 +927,7 @@
                         android:layout_height="160dp"
                         android:gravity="center"
                         android:text="@string/no_items_to_display"
-                        android:textColor="#0055ff"
+                        android:textColor="#FFFF55"
                         android:visibility="gone" />
                 </FrameLayout>
                 <LinearLayout
@@ -943,7 +943,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="+ New Task"
-                        android:textColor="#DDF6FF"
+                        android:textColor="#FFFF55"
                         android:textSize="14sp"
                         android:textStyle="bold" />
                 </LinearLayout>

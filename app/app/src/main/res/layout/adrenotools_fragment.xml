@@ -44,7 +44,7 @@
                 android:layout_height="wrap_content"
                 android:padding="8dp"
                 android:text="Refresh"
-                android:textColor="#0066ff" />
+                android:textColor="#FFFF55" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView

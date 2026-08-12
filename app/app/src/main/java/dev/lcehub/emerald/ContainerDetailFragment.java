@@ -141,11 +141,11 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
 
         if (isDarkMode) {
             // Apply dark mode-specific attributes
-            textView.setTextColor(Color.parseColor("#0055ff"));
+            textView.setTextColor(Color.parseColor("#ffff55"));
             textView.setBackgroundResource(R.color.window_background_color_dark);
         } else {
             // Apply light mode-specific attributes (original FieldSetLabel)
-            textView.setTextColor(Color.parseColor("#0055ff"));
+            textView.setTextColor(Color.parseColor("#ffff55"));
             textView.setBackgroundResource(R.color.window_background_color);
         }
     }
@@ -256,7 +256,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         if (drawable != null) {
             int size = Math.round(16 * textView.getResources().getDisplayMetrics().density);
             drawable.setBounds(0, 0, size, size);
-            drawable.setTint(Color.parseColor("#0055ff"));
+            drawable.setTint(Color.parseColor("#ffff55"));
             textView.setCompoundDrawables(drawable, null, null, null);
             textView.setCompoundDrawablePadding(Math.round(6 * textView.getResources().getDisplayMetrics().density));
         }
@@ -265,14 +265,14 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
 
     private void styleContainerTabs(TabLayout tabLayout) {
         int[][] states = new int[][]{new int[]{android.R.attr.state_selected}, new int[]{}};
-        int[] colors = new int[]{Color.parseColor("#0055ff"), Color.parseColor("#9CA8B8")};
+        int[] colors = new int[]{Color.parseColor("#ffff55"), Color.parseColor("#909090")};
         android.content.res.ColorStateList stateList = new android.content.res.ColorStateList(states, colors);
         for (int i = 0; i < tabLayout.getTabCount(); i++) {
             TabLayout.Tab tab = tabLayout.getTabAt(i);
             if (tab != null) tab.setIcon(null);
         }
         tabLayout.setTabTextColors(stateList);
-        tabLayout.setSelectedTabIndicatorColor(Color.parseColor("#0055ff"));
+        tabLayout.setSelectedTabIndicatorColor(Color.parseColor("#ffff55"));
     }
 
     @Override
@@ -1386,7 +1386,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
     }
 
     private void addProtonDialogRow(ContentDialog dialog, LinearLayout content, int iconResId, String title, String subtitle, Runnable action) {
-        int accentColor = Color.parseColor("#0055ff");
+        int accentColor = Color.parseColor("#ffff55");
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(android.view.Gravity.CENTER_VERTICAL);
@@ -1433,7 +1433,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         list.removeAllViews();
         TextView titleView = new TextView(context);
         titleView.setText(R.string.available_protons);
-        titleView.setTextColor(Color.parseColor("#0055FF"));
+        titleView.setTextColor(Color.parseColor("#ffff55"));
         titleView.setTextSize(13);
         titleView.setTypeface(null, android.graphics.Typeface.BOLD);
         titleView.setPadding(dp(2), 0, 0, dp(4));
@@ -1500,7 +1500,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
 
         ImageView icon = new ImageView(context);
         icon.setImageResource(iconResId);
-        icon.setColorFilter(Color.parseColor("#0055FF"), PorterDuff.Mode.SRC_IN);
+        icon.setColorFilter(Color.parseColor("#ffff55"), PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(24), dp(24));
         iconParams.setMargins(0, 0, dp(10), 0);
         row.addView(icon, iconParams);
@@ -1519,7 +1519,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
 
         TextView subtitleView = new TextView(context);
         subtitleView.setText(subtitle);
-        subtitleView.setTextColor(Color.parseColor("#9CA8B8"));
+        subtitleView.setTextColor(Color.parseColor("#b0b0b0"));
         subtitleView.setTextSize(12);
         subtitleView.setSingleLine(true);
         subtitleView.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -1527,7 +1527,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
 
         TextView actionView = new TextView(context);
         actionView.setText(actionTextResId);
-        actionView.setTextColor(Color.parseColor("#0055FF"));
+        actionView.setTextColor(Color.parseColor("#ffff55"));
         actionView.setTextSize(13);
         actionView.setTypeface(null, android.graphics.Typeface.BOLD);
         actionView.setPadding(dp(10), dp(6), dp(2), dp(6));
@@ -1536,7 +1536,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         if (deleteAction != null) {
             ImageView deleteView = new ImageView(context);
             deleteView.setImageResource(R.drawable.icon_popup_menu_remove);
-            deleteView.setColorFilter(Color.parseColor("#0055FF"), PorterDuff.Mode.SRC_IN);
+            deleteView.setColorFilter(Color.parseColor("#ffff55"), PorterDuff.Mode.SRC_IN);
             deleteView.setPadding(dp(6), dp(6), dp(6), dp(6));
             LinearLayout.LayoutParams deleteParams = new LinearLayout.LayoutParams(dp(32), dp(32));
             deleteParams.setMargins(dp(6), 0, 0, 0);
@@ -1705,7 +1705,7 @@ public class ContainerDetailFragment extends Fragment implements DXVKConfigDialo
         row.setPadding(dp(12), 0, dp(12), 0);
         ImageView icon = new ImageView(context);
         icon.setImageResource(iconResId);
-        icon.setColorFilter(Color.parseColor("#0055ff"), PorterDuff.Mode.SRC_IN);
+        icon.setColorFilter(Color.parseColor("#ffff55"), PorterDuff.Mode.SRC_IN);
         LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(dp(26), dp(26));
         iconParams.setMargins(0, 0, dp(12), 0);
         row.addView(icon, iconParams);

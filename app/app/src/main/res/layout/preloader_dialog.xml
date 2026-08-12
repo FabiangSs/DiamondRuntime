@@ -27,7 +27,7 @@
             android:indeterminate="true"
             app:indicatorColor="@color/colorPrimary"
             app:indicatorSize="44dp"
-            app:trackColor="#263241"
+            app:trackColor="#3c3c3c"
             app:trackThickness="6dp" />
 
         <TextView
@@ -35,6 +35,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textSize="15sp"
-            android:textColor="#EAF1FF" />
+            android:textColor="#ffffff" />
     </LinearLayout>
 </FrameLayout>

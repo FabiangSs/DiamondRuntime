@@ -7,7 +7,7 @@
 
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#45B8FF"
+        android:strokeColor="#FFFF55"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
@@ -49,7 +49,7 @@
     <!-- Center hole, radius 4.5 centered at (15,15) -->
     <path
         android:fillColor="#00000000"
-        android:strokeColor="#45B8FF"
+        android:strokeColor="#FFFF55"
         android:strokeWidth="2"
         android:pathData="M15,10.5 a4.5,4.5 0,1,1 0,9 a4.5,4.5 0,1,1 0,-9"/>
 
