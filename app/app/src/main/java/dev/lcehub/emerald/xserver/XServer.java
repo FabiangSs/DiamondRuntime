@@ -1,7 +1,6 @@
 package dev.lcehub.emerald.xserver;
 
 import android.util.SparseArray;
-
 import dev.lcehub.emerald.core.CursorLocker;
 import dev.lcehub.emerald.renderer.VulkanRenderer;
 import dev.lcehub.emerald.winhandler.WinHandler;
@@ -11,13 +10,22 @@ import dev.lcehub.emerald.xserver.extensions.Extension;
 import dev.lcehub.emerald.xserver.extensions.MITSHMExtension;
 import dev.lcehub.emerald.xserver.extensions.PresentExtension;
 import dev.lcehub.emerald.xserver.extensions.SyncExtension;
-
 import java.nio.charset.Charset;
 import java.util.EnumMap;
 import java.util.concurrent.locks.ReentrantLock;
 
 public class XServer {
-    public enum Lockable {WINDOW_MANAGER, PIXMAP_MANAGER, DRAWABLE_MANAGER, GRAPHIC_CONTEXT_MANAGER, INPUT_DEVICE, CURSOR_MANAGER, SHMSEGMENT_MANAGER}
+
+    public enum Lockable {
+        WINDOW_MANAGER,
+        PIXMAP_MANAGER,
+        DRAWABLE_MANAGER,
+        GRAPHIC_CONTEXT_MANAGER,
+        INPUT_DEVICE,
+        CURSOR_MANAGER,
+        SHMSEGMENT_MANAGER,
+    }
+
     public static final short VERSION = 11;
     public static final String VENDOR_NAME = "Elbrus Technologies, LLC";
     public static final Charset LATIN1_CHARSET = Charset.forName("latin1");
@@ -25,7 +33,8 @@ public class XServer {
     public final ScreenInfo screenInfo;
     public final PixmapManager pixmapManager;
     public final ResourceIDs resourceIDs = new ResourceIDs(128);
-    public final GraphicsContextManager graphicsContextManager = new GraphicsContextManager();
+    public final GraphicsContextManager graphicsContextManager =
+        new GraphicsContextManager();
     public final SelectionManager selectionManager;
     public final DrawableManager drawableManager;
     public final WindowManager windowManager;
@@ -38,7 +47,9 @@ public class XServer {
     private SHMSegmentManager shmSegmentManager;
     private VulkanRenderer renderer;
     private WinHandler winHandler;
-    private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
+    private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(
+        Lockable.class
+    );
     private boolean relativeMouseMovement = true;
     private boolean simulateTouchScreen = false;
     private boolean isGrabbed = false;
@@ -47,7 +58,8 @@ public class XServer {
     public XServer(ScreenInfo screenInfo) {
         this.screenInfo = screenInfo;
         cursorLocker = new CursorLocker(this);
-        for (Lockable lockable : Lockable.values()) locks.put(lockable, new ReentrantLock());
+        for (Lockable lockable : Lockable.values())
+            locks.put(lockable, new ReentrantLock());
 
         pixmapManager = new PixmapManager();
         drawableManager = new DrawableManager(this);
@@ -59,6 +71,7 @@ public class XServer {
 
         DesktopHelper.attachTo(this);
         setupExtensions();
+        pointer.setPosition(100, 100); //neo: set cursor at 100,100 rather than 0,0
     }
 
     public boolean isRelativeMouseMovement() {
@@ -70,7 +83,9 @@ public class XServer {
         this.relativeMouseMovement = relativeMouseMovement;
     }
 
-    public boolean isSimulateTouchScreen() { return simulateTouchScreen; }
+    public boolean isSimulateTouchScreen() {
+        return simulateTouchScreen;
+    }
 
     public void setSimulateTouchScreen(boolean simulateTouchScreen) {
         this.simulateTouchScreen = simulateTouchScreen;
@@ -105,6 +120,7 @@ public class XServer {
     }
 
     private class SingleXLock implements XLock {
+
         private final ReentrantLock lock;
 
         private SingleXLock(Lockable lockable) {
@@ -119,6 +135,7 @@ public class XServer {
     }
 
     private class MultiXLock implements XLock {
+
         private final Lockable[] lockables;
 
         private MultiXLock(Lockable[] lockables) {
@@ -155,25 +172,33 @@ public class XServer {
     }
 
     public void injectPointerMove(int x, int y) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             pointer.setPosition(x, y);
         }
     }
 
     public void injectPointerMoveDelta(int dx, int dy) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             pointer.setPosition(pointer.getX() + dx, pointer.getY() + dy);
         }
     }
 
     public void injectPointerButtonPress(Pointer.Button buttonCode) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             pointer.setButton(buttonCode, true);
         }
     }
 
     public void injectPointerButtonRelease(Pointer.Button buttonCode) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             pointer.setButton(buttonCode, false);
         }
     }
@@ -183,13 +208,17 @@ public class XServer {
     }
 
     public void injectKeyPress(XKeycode xKeycode, int keysym) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             keyboard.setKeyPress(xKeycode.id, keysym);
         }
     }
 
     public void injectKeyRelease(XKeycode xKeycode) {
-        try (XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)) {
+        try (
+            XLock lock = lock(Lockable.WINDOW_MANAGER, Lockable.INPUT_DEVICE)
+        ) {
             keyboard.setKeyRelease(xKeycode.id);
         }
     }
@@ -203,7 +232,7 @@ public class XServer {
     }
 
     public <T extends Extension> T getExtension(int opcode) {
-        return (T)extensions.get(opcode);
+        return (T) extensions.get(opcode);
     }
 
     public synchronized void setGrabbed(boolean grabbed, XClient client) {

@@ -28,8 +28,8 @@ public class Pointer {
         new ArrayList<>();
     private final Bitmask buttonMask = new Bitmask();
     private final XServer xServer;
-    private short x = 100; //neo: set default position to 100,100 instead of implicit 0,0 to avoid titlebar on relative mouse
-    private short y = 100; //neo: ^^^^^
+    private short x; //neo: note: position on both of these wont change from here, go to XServer.java and set position in the decorator
+    private short y;
 
     public interface OnPointerMotionListener {
         default void onPointerButtonPress(Button button) {}
