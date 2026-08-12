@@ -39,7 +39,7 @@ public class XServer {
     private VulkanRenderer renderer;
     private WinHandler winHandler;
     private final EnumMap<Lockable, ReentrantLock> locks = new EnumMap<>(Lockable.class);
-    private boolean relativeMouseMovement = false;
+    private boolean relativeMouseMovement = true;
     private boolean simulateTouchScreen = false;
     private boolean isGrabbed = false;
     private XClient grabbingClient = null;
@@ -215,5 +215,3 @@ public class XServer {
         return isGrabbed && grabbingClient == client;
     }
 }
-
-

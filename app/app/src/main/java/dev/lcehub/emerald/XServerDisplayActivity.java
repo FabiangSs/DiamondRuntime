@@ -139,7 +139,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private static final boolean DISABLE_TOUCHSCREEN_AUTO_HIDE = true;
 
-    public static String NOTIFICATION_CHANNEL_ID = "Winlator";
+    public static String NOTIFICATION_CHANNEL_ID = "DiamondRuntime";
     public static int NOTIFICATION_ID = -1;
     private XServerView xServerView;
     private InputControlsView inputControlsView;
@@ -151,8 +151,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private XServer xServer;
     private InputControlsManager inputControlsManager;
     private ImageFs imageFs;
-    private FrameRating classicHud = null;   
-    private WinlatorHUD modernHud = null;     
+    private FrameRating classicHud = null;
+    private WinlatorHUD modernHud = null;
     private Runnable editInputControlsCallback;
     private Shortcut shortcut;
     private String graphicsDriver = Container.DEFAULT_GRAPHICS_DRIVER;
@@ -181,7 +181,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private int activeRendererWindowId = -1;
     private String lastRendererName = null;
-    private boolean cursorLock; 
+    private boolean cursorLock;
     private final float[] xform = XForm.getInstance();
     private ContentsManager contentsManager;
     private boolean navigationFocused = false;
@@ -192,7 +192,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     PreloaderDialog preloaderDialog = null;
     private Runnable configChangedCallback = null;
     private boolean isPaused = false;
-    private boolean isRelativeMouseMovement = false;
+    private boolean isRelativeMouseMovement = true;
     private boolean isMouseDisabled = false;
     private boolean simulateTouchScreen = false;
 
@@ -377,7 +377,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (container == null) {
             Log.e("XServerDisplayActivity", "Failed to retrieve container with ID: " + containerId);
-            finish(); 
+            finish();
             return;
         }
 
@@ -1046,7 +1046,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (overrideEnvVars != null) {
             envVars.putAll(overrideEnvVars);
-            overrideEnvVars.clear(); 
+            overrideEnvVars.clear();
         }
 
         environment = new XEnvironment(this, imageFs);
@@ -2033,9 +2033,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             editor.apply();
 
             if (isTimeoutEnabled) {
-                startTouchscreenTimeout(); 
+                startTouchscreenTimeout();
             } else {
-                touchpadView.setOnTouchListener(null); 
+                touchpadView.setOnTouchListener(null);
             }
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
@@ -2053,7 +2053,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void simulateConfirmInputControlsDialog() {
 
-        boolean isShowTouchscreenControls = preferences.getBoolean("show_touchscreen_controls_enabled", true); 
+        boolean isShowTouchscreenControls = preferences.getBoolean("show_touchscreen_controls_enabled", true);
 
         inputControlsView.setShowTouchscreenControls(isShowTouchscreenControls);
 
@@ -2065,7 +2065,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
         editor.apply();
 
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1); 
+        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
 
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles();
         if (selectedProfileIndex < 0 || selectedProfileIndex >= profiles.size()) {
@@ -2087,9 +2087,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         if (isTimeoutEnabled && inputControlsView.getVisibility() == View.VISIBLE) {
-            startTouchscreenTimeout(); 
+            startTouchscreenTimeout();
         } else {
-            touchpadView.setOnTouchListener(null); 
+            touchpadView.setOnTouchListener(null);
         }
 
         Log.d("XServerDisplayActivity", "Input controls simulated confirmation executed.");
@@ -2314,7 +2314,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         return handledByWinHandler || handledByTouchpadView || handledBySuper;
     }
 
-    private static final int RECAPTURE_DELAY_MS = 10000; 
+    private static final int RECAPTURE_DELAY_MS = 10000;
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {

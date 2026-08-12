@@ -77,8 +77,8 @@ public class MainActivity extends AppCompatActivity implements NavigationView.On
     private boolean isDarkMode;
 
     private void createNotificationChannel() {
-        String name = "Winlator";
-        String description = "Winlator XServer Messages";
+        String name = "DiamondRuntime";
+        String description = "DiamondRuntime XServer Messages";
         int importance = NotificationManager.IMPORTANCE_LOW;
         NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
         channel.setDescription(description);
