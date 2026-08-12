@@ -1,4 +1,3 @@
-//fab
 name: Android CI Bionic
 on:
   push:
