@@ -2070,7 +2070,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles();
         if (selectedProfileIndex < 0 || selectedProfileIndex >= profiles.size()) {
             for (int i = 0; i < profiles.size(); i++) {
-                if (profiles.get(i).getName().equals("Virtual Gamepad")) {
+                if (profiles.get(i).getName().equals("Default Controls")) {
                     selectedProfileIndex = i;
                     break;
                 }
