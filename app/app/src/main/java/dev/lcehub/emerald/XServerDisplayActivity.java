@@ -9,17 +9,15 @@ import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.PictureInPictureParams;
-import android.graphics.Rect;
-import android.graphics.Color;
-import android.graphics.drawable.GradientDrawable;
-import android.util.Rational;
-import android.util.TypedValue;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.Color;
+import android.graphics.Rect;
+import android.graphics.drawable.GradientDrawable;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Build;
@@ -27,6 +25,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.util.Log;
+import android.util.Rational;
+import android.util.TypedValue;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
@@ -41,7 +41,6 @@ import android.widget.Spinner;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.annotation.NonNull;
@@ -54,7 +53,7 @@ import androidx.core.content.ContextCompat;
 import androidx.core.view.GravityCompat;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.preference.PreferenceManager;
-
+import cn.sherlock.com.sun.media.sound.SF2Soundbank;
 import dev.lcehub.emerald.container.Container;
 import dev.lcehub.emerald.container.ContainerManager;
 import dev.lcehub.emerald.container.Shortcut;
@@ -63,9 +62,9 @@ import dev.lcehub.emerald.contentdialog.DXVKConfigDialog;
 import dev.lcehub.emerald.contentdialog.DebugDialog;
 import dev.lcehub.emerald.contentdialog.GraphicsDriverConfigDialog;
 import dev.lcehub.emerald.contentdialog.WineD3DConfigDialog;
+import dev.lcehub.emerald.contents.AdrenotoolsManager;
 import dev.lcehub.emerald.contents.ContentProfile;
 import dev.lcehub.emerald.contents.ContentsManager;
-import dev.lcehub.emerald.contents.AdrenotoolsManager;
 import dev.lcehub.emerald.core.AppUtils;
 import dev.lcehub.emerald.core.DefaultVersion;
 import dev.lcehub.emerald.core.EnvVars;
@@ -92,12 +91,12 @@ import dev.lcehub.emerald.midi.MidiHandler;
 import dev.lcehub.emerald.midi.MidiManager;
 import dev.lcehub.emerald.renderer.VulkanRenderer;
 import dev.lcehub.emerald.widget.FrameRating;
-import dev.lcehub.emerald.widget.SeekBar;
-import dev.lcehub.emerald.widget.WinlatorHUD;
 import dev.lcehub.emerald.widget.InputControlsView;
 import dev.lcehub.emerald.widget.LogView;
 import dev.lcehub.emerald.widget.MagnifierView;
+import dev.lcehub.emerald.widget.SeekBar;
 import dev.lcehub.emerald.widget.TouchpadView;
+import dev.lcehub.emerald.widget.WinlatorHUD;
 import dev.lcehub.emerald.widget.XServerView;
 import dev.lcehub.emerald.winhandler.MouseEventFlags;
 import dev.lcehub.emerald.winhandler.TaskManagerSidebar;
@@ -116,11 +115,6 @@ import dev.lcehub.emerald.xserver.ScreenInfo;
 import dev.lcehub.emerald.xserver.Window;
 import dev.lcehub.emerald.xserver.WindowManager;
 import dev.lcehub.emerald.xserver.XServer;
-
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -132,8 +126,9 @@ import java.util.Iterator;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import cn.sherlock.com.sun.media.sound.SF2Soundbank;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 public class XServerDisplayActivity extends AppCompatActivity {
 
@@ -219,9 +214,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
         String name = "Winlator";
         String description = "Winlator XServer Messages";
         int importance = NotificationManager.IMPORTANCE_HIGH;
-        NotificationChannel channel = new NotificationChannel(NOTIFICATION_CHANNEL_ID, name, importance);
+        NotificationChannel channel = new NotificationChannel(
+            NOTIFICATION_CHANNEL_ID,
+            name,
+            importance
+        );
         channel.setDescription(description);
-        NotificationManager notificationManager = getSystemService(NotificationManager.class);
+        NotificationManager notificationManager = getSystemService(
+            NotificationManager.class
+        );
         notificationManager.createNotificationChannel(channel);
     }
 
@@ -241,8 +242,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         float maxRefresh = 0f;
 
         for (android.view.Display.Mode mode : modes) {
-            if (mode.getRefreshRate() > maxRefresh)
-                maxRefresh = mode.getRefreshRate();
+            if (mode.getRefreshRate() > maxRefresh) maxRefresh =
+                mode.getRefreshRate();
         }
 
         Log.d("XServerDisplayActivity", "Picking refresh rate " + maxRefresh);
@@ -256,7 +257,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
         AppUtils.hideSystemUI(this);
         AppUtils.keepScreenOn(this);
 
-        android.view.WindowManager.LayoutParams params = getWindow().getAttributes();
+        android.view.WindowManager.LayoutParams params =
+            getWindow().getAttributes();
         params.preferredRefreshRate = pickHighestRefreshRate();
         getWindow().setAttributes(params);
 
@@ -269,8 +271,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         isDarkMode = preferences.getBoolean("dark_mode", false);
 
-        boolean isOpenWithAndroidBrowser = preferences.getBoolean("open_with_android_browser", false);
-        boolean isShareAndroidClipboard = preferences.getBoolean("share_android_clipboard", false);
+        boolean isOpenWithAndroidBrowser = preferences.getBoolean(
+            "open_with_android_browser",
+            false
+        );
+        boolean isShareAndroidClipboard = preferences.getBoolean(
+            "share_android_clipboard",
+            false
+        );
 
         boolean xinputDisabledFromShortcut = false;
 
@@ -291,11 +299,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 return;
             }
 
-            if (preferences.getBoolean("touchscreen_timeout_enabled", false)
-                    && inputControlsView != null
-                    && inputControlsView.getProfile() != null) {
+            if (
+                preferences.getBoolean("touchscreen_timeout_enabled", false) &&
+                inputControlsView != null &&
+                inputControlsView.getProfile() != null
+            ) {
                 inputControlsView.setVisibility(View.GONE);
-                Log.d("XServerDisplayActivity", "Touchscreen controls hidden after timeout.");
+                Log.d(
+                    "XServerDisplayActivity",
+                    "Touchscreen controls hidden after timeout."
+                );
             }
         };
 
@@ -303,23 +316,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
         contentsManager.syncContents();
 
         drawerLayout = findViewById(R.id.DrawerLayout);
-        drawerLayout.setOnApplyWindowInsetsListener(
-                (view, windowInsets) -> windowInsets.replaceSystemWindowInsets(0, 0, 0, 0));
+        drawerLayout.setOnApplyWindowInsetsListener((view, windowInsets) ->
+            windowInsets.replaceSystemWindowInsets(0, 0, 0, 0)
+        );
         drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
-        drawerLayout.addDrawerListener(new DrawerLayout.SimpleDrawerListener() {
-            @Override
-            public void onDrawerOpened(View drawerView) {
-                openSidebarPanel(activeSidebarItemId, activeSidebarPanelId);
-            }
+        drawerLayout.addDrawerListener(
+            new DrawerLayout.SimpleDrawerListener() {
+                @Override
+                public void onDrawerOpened(View drawerView) {
+                    openSidebarPanel(activeSidebarItemId, activeSidebarPanelId);
+                }
 
-            @Override
-            public void onDrawerClosed(View drawerView) {
-                hideAllSidebarPanels();
+                @Override
+                public void onDrawerClosed(View drawerView) {
+                    hideAllSidebarPanels();
+                }
             }
-        });
+        );
 
-        boolean enableLogs = preferences.getBoolean("enable_wine_debug", false)
-                || preferences.getBoolean("enable_box64_logs", false);
+        boolean enableLogs =
+            preferences.getBoolean("enable_wine_debug", false) ||
+            preferences.getBoolean("enable_box64_logs", false);
 
         wireSidebarListeners(enableLogs);
 
@@ -329,8 +346,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (devInputDir.exists() || devInputDir.mkdirs()) {
             for (int i = 0; i < 4; i++) {
                 File eventFile = new File(devInputDir, "event" + i);
-                if (eventFile.exists())
-                    eventFile.delete();
+                if (eventFile.exists()) eventFile.delete();
             }
         }
 
@@ -339,22 +355,34 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         String screenSize = Container.DEFAULT_SCREEN_SIZE;
         containerManager = new ContainerManager(this);
-        container = containerManager.getContainerById(getIntent().getIntExtra("container_id", 0));
+        container = containerManager.getContainerById(
+            getIntent().getIntExtra("container_id", 0)
+        );
 
         String shortcutPath = getIntent().getStringExtra("shortcut_path");
         Log.d("XServerDisplayActivity", "Shortcut Path: " + shortcutPath);
 
         int containerId = getIntent().getIntExtra("container_id", 0);
-        Log.d("XServerDisplayActivity", "Container ID from Intent: " + containerId);
+        Log.d(
+            "XServerDisplayActivity",
+            "Container ID from Intent: " + containerId
+        );
         if (containerId == 0) {
-            Log.d("XServerDisplayActivity", "Container ID is 0, attempting to parse from .desktop file");
-
+            Log.d(
+                "XServerDisplayActivity",
+                "Container ID is 0, attempting to parse from .desktop file"
+            );
         }
 
-        if (containerId == 0 && shortcutPath != null && !shortcutPath.isEmpty()) {
+        if (
+            containerId == 0 && shortcutPath != null && !shortcutPath.isEmpty()
+        ) {
             File shortcutFile = new File(shortcutPath);
             containerId = parseContainerIdFromDesktopFile(shortcutFile);
-            Log.d("XServerDisplayActivity", "Parsed Container ID from .desktop file: " + containerId);
+            Log.d(
+                "XServerDisplayActivity",
+                "Parsed Container ID from .desktop file: " + containerId
+            );
         }
 
         playtimePrefs = getSharedPreferences("playtime_stats", MODE_PRIVATE);
@@ -362,11 +390,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (shortcutPath != null && !shortcutPath.isEmpty()) {
             if (shortcutName == null || shortcutName.isEmpty()) {
-                shortcutName = parseShortcutNameFromDesktopFile(new File(shortcutPath));
-                Log.d("XServerDisplayActivity", "Parsed Shortcut Name from .desktop file: " + shortcutName);
+                shortcutName = parseShortcutNameFromDesktopFile(
+                    new File(shortcutPath)
+                );
+                Log.d(
+                    "XServerDisplayActivity",
+                    "Parsed Shortcut Name from .desktop file: " + shortcutName
+                );
             }
         } else {
-            Log.d("XServerDisplayActivity", "No shortcut path provided, skipping shortcut parsing.");
+            Log.d(
+                "XServerDisplayActivity",
+                "No shortcut path provided, skipping shortcut parsing."
+            );
         }
 
         incrementPlayCount();
@@ -376,7 +412,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         container = containerManager.getContainerById(containerId);
 
         if (container == null) {
-            Log.e("XServerDisplayActivity", "Failed to retrieve container with ID: " + containerId);
+            Log.e(
+                "XServerDisplayActivity",
+                "Failed to retrieve container with ID: " + containerId
+            );
             finish();
             return;
         }
@@ -387,28 +426,48 @@ public class XServerDisplayActivity extends AppCompatActivity {
             shortcut = new Shortcut(container, new File(shortcutPath));
         }
 
-        taskAffinityMask = (short) ProcessHelper.getAffinityMask(container.getCPUList(true));
-        taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(container.getCPUListWoW64(true));
+        taskAffinityMask = (short) ProcessHelper.getAffinityMask(
+            container.getCPUList(true)
+        );
+        taskAffinityMaskWoW64 = (short) ProcessHelper.getAffinityMask(
+            container.getCPUListWoW64(true)
+        );
 
         String affinityCpuList = container.getCPUList(true);
 
         if (shortcut != null) {
-            affinityCpuList = shortcut.getExtra("cpuList", container.getCPUList(true));
-            taskAffinityMask = (short) ProcessHelper.getAffinityMask(affinityCpuList);
+            affinityCpuList = shortcut.getExtra(
+                "cpuList",
+                container.getCPUList(true)
+            );
+            taskAffinityMask = (short) ProcessHelper.getAffinityMask(
+                affinityCpuList
+            );
             taskAffinityMaskWoW64 = taskAffinityMask;
         }
 
-        boolean syncCpuTopology = shortcut != null
-                ? shortcut.getExtra("syncCpuTopology", container.isSyncCpuTopology() ? "1" : "").equals("1")
+        boolean syncCpuTopology =
+            shortcut != null
+                ? shortcut
+                      .getExtra(
+                          "syncCpuTopology",
+                          container.isSyncCpuTopology() ? "1" : ""
+                      )
+                      .equals("1")
                 : container.isSyncCpuTopology();
 
         wineCpuTopologyValue = "";
-        if (syncCpuTopology && affinityCpuList != null && !affinityCpuList.isEmpty()) {
+        if (
+            syncCpuTopology &&
+            affinityCpuList != null &&
+            !affinityCpuList.isEmpty()
+        ) {
             int coreCount = affinityCpuList.split(",").length;
             wineCpuTopologyValue = coreCount + ":" + affinityCpuList;
         }
 
-        String wmClass = shortcut != null ? shortcut.getExtra("wmClass", "") : "";
+        String wmClass =
+            shortcut != null ? shortcut.getExtra("wmClass", "") : "";
         Log.d("XServerDisplayActivity", "Startup wmClass: " + wmClass);
 
         firstTimeBoot = container.getExtra("imgVersion").isEmpty();
@@ -421,7 +480,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         ProcessHelper.removeAllDebugCallbacks();
         if (enableLogs) {
             LogView.setFilename(getExecutable());
-            ProcessHelper.addDebugCallback(debugDialog = new DebugDialog(this));
+            ProcessHelper.addDebugCallback(
+                (debugDialog = new DebugDialog(this))
+            );
         }
 
         graphicsDriver = container.getGraphicsDriver();
@@ -439,49 +500,101 @@ public class XServerDisplayActivity extends AppCompatActivity {
         Log.d("XServerDisplayActivity", "Intent Extras: " + intent.getExtras());
 
         if (shortcut != null) {
-            graphicsDriver = shortcut.getExtra("graphicsDriver", container.getGraphicsDriver());
-            graphicsDriverConfig = shortcut.getExtra("graphicsDriverConfig", container.getGraphicsDriverConfig());
-            audioDriver = shortcut.getExtra("audioDriver", container.getAudioDriver());
+            graphicsDriver = shortcut.getExtra(
+                "graphicsDriver",
+                container.getGraphicsDriver()
+            );
+            graphicsDriverConfig = shortcut.getExtra(
+                "graphicsDriverConfig",
+                container.getGraphicsDriverConfig()
+            );
+            audioDriver = shortcut.getExtra(
+                "audioDriver",
+                container.getAudioDriver()
+            );
             emulator = shortcut.getExtra("emulator", container.getEmulator());
-            dxwrapper = shortcut.getExtra("dxwrapper", container.getDXWrapper());
-            dxwrapperConfig = shortcut.getExtra("dxwrapperConfig", container.getDXWrapperConfig());
-            screenSize = shortcut.getExtra("screenSize", container.getScreenSize());
+            dxwrapper = shortcut.getExtra(
+                "dxwrapper",
+                container.getDXWrapper()
+            );
+            dxwrapperConfig = shortcut.getExtra(
+                "dxwrapperConfig",
+                container.getDXWrapperConfig()
+            );
+            screenSize = shortcut.getExtra(
+                "screenSize",
+                container.getScreenSize()
+            );
             lc_all = shortcut.getExtra("lc_all", container.getLC_ALL());
             String inputType = shortcut.getExtra("inputType");
-            if (!inputType.isEmpty())
-                winHandler.setInputType(Byte.parseByte(inputType));
-            String xinputDisabledString = shortcut.getExtra("disableXinput", "false");
+            if (!inputType.isEmpty()) winHandler.setInputType(
+                Byte.parseByte(inputType)
+            );
+            String xinputDisabledString = shortcut.getExtra(
+                "disableXinput",
+                "false"
+            );
             xinputDisabledFromShortcut = parseBoolean(xinputDisabledString);
 
             winHandler.setXInputDisabled(xinputDisabledFromShortcut);
-            String sharpnessEffect = shortcut.getExtra("sharpnessEffect", "None");
+            String sharpnessEffect = shortcut.getExtra(
+                "sharpnessEffect",
+                "None"
+            );
             if (!sharpnessEffect.equals("None")) {
-                double sharpnessLevel = Double.parseDouble(shortcut.getExtra("sharpnessLevel", "100"));
-                double sharpnessDenoise = Double.parseDouble(shortcut.getExtra("sharpnessDenoise", "100"));
-                vkbasaltConfig = "effects=" + sharpnessEffect.toLowerCase() + ";" + "casSharpness="
-                        + sharpnessLevel / 100 + ";" + "dlsSharpness=" + sharpnessLevel / 100 + ";" + "dlsDenoise="
-                        + sharpnessDenoise / 100 + ";" + "enableOnLaunch=True";
+                double sharpnessLevel = Double.parseDouble(
+                    shortcut.getExtra("sharpnessLevel", "100")
+                );
+                double sharpnessDenoise = Double.parseDouble(
+                    shortcut.getExtra("sharpnessDenoise", "100")
+                );
+                vkbasaltConfig =
+                    "effects=" +
+                    sharpnessEffect.toLowerCase() +
+                    ";" +
+                    "casSharpness=" +
+                    sharpnessLevel / 100 +
+                    ";" +
+                    "dlsSharpness=" +
+                    sharpnessLevel / 100 +
+                    ";" +
+                    "dlsDenoise=" +
+                    sharpnessDenoise / 100 +
+                    ";" +
+                    "enableOnLaunch=True";
             }
-            Log.d("XServerDisplayActivity", "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut);
+            Log.d(
+                "XServerDisplayActivity",
+                "XInput Disabled from Shortcut: " + xinputDisabledFromShortcut
+            );
 
-            simulateTouchScreen = shortcut.getExtra("simTouchScreen").equals("1");
+            simulateTouchScreen = shortcut
+                .getExtra("simTouchScreen")
+                .equals("1");
         }
 
-        this.graphicsDriverConfig = GraphicsDriverConfigDialog.parseGraphicsDriverConfig(graphicsDriverConfig);
+        this.graphicsDriverConfig =
+            GraphicsDriverConfigDialog.parseGraphicsDriverConfig(
+                graphicsDriverConfig
+            );
         this.dxwrapperConfig = DXVKConfigDialog.parseConfig(dxwrapperConfig);
 
         if (!wineInfo.isWin64()) {
             onExtractFileListener = (file, size) -> {
                 String path = file.getPath();
-                if (path.contains("system32/"))
-                    return null;
+                if (path.contains("system32/")) return null;
                 return new File(path.replace("syswow64/", "system32/"));
             };
         }
 
-        boolean removeLoadingBarWhenBootingGames = PreferenceManager.getDefaultSharedPreferences(this)
-                .getBoolean("remove_loading_bar_when_booting_games", false);
-        if (!removeLoadingBarWhenBootingGames) preloaderDialog.show(R.string.starting_up);
+        boolean removeLoadingBarWhenBootingGames =
+            PreferenceManager.getDefaultSharedPreferences(this).getBoolean(
+                "remove_loading_bar_when_booting_games",
+                false
+            );
+        if (!removeLoadingBarWhenBootingGames) preloaderDialog.show(
+            R.string.starting_up
+        );
 
         inputControlsManager = new InputControlsManager(this);
         xServer = new XServer(new ScreenInfo(screenSize));
@@ -489,106 +602,138 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         boolean[] winStarted = { false };
 
-        xServer.windowManager.addOnWindowModificationListener(new WindowManager.OnWindowModificationListener() {
-            @Override
-            public void onUpdateWindowContent(Window window) {
-                if (!winStarted[0] && window.isApplicationWindow()) {
-                    if (!simulateTouchScreen) {
-                        xServerView.getRenderer().setCursorVisible(true);
+        xServer.windowManager.addOnWindowModificationListener(
+            new WindowManager.OnWindowModificationListener() {
+                @Override
+                public void onUpdateWindowContent(Window window) {
+                    if (!winStarted[0] && window.isApplicationWindow()) {
+                        if (!simulateTouchScreen) {
+                            xServerView.getRenderer().setCursorVisible(true);
+                        }
+                        preloaderDialog.closeOnUiThread();
+                        winStarted[0] = true;
                     }
-                    preloaderDialog.closeOnUiThread();
-                    winStarted[0] = true;
+
+                    if (frameRatingWindowId == window.id) {
+                        if (classicHud != null) classicHud.update();
+                        if (modernHud != null) modernHud.onFrame();
+                    } else if (
+                        frameRatingWindowId == -1 &&
+                        lastRendererName != null &&
+                        window.isApplicationWindow() &&
+                        ((modernHud != null && modernHud.isUserEnabled()) ||
+                            (classicHud != null &&
+                                classicHud.getVisibility() == View.VISIBLE))
+                    ) {
+                        frameRatingWindowId = window.id;
+                        activeRendererWindowId = window.id;
+                        if (xServerView != null) xServerView
+                            .getRenderer()
+                            .setFpsWindowId(window.id);
+                        if (classicHud != null) classicHud.update();
+                        if (modernHud != null) modernHud.onFrame();
+                    }
                 }
 
-                if (frameRatingWindowId == window.id) {
-                    if (classicHud != null) classicHud.update();
-                    if (modernHud != null) modernHud.onFrame();
-                } else if (frameRatingWindowId == -1 && lastRendererName != null
-                        && window.isApplicationWindow()
-                        && ((modernHud != null && modernHud.isUserEnabled())
-                         || (classicHud != null && classicHud.getVisibility() == View.VISIBLE))) {
+                @Override
+                public void onMapWindow(Window window) {
+                    assignTaskAffinity(window);
+                }
 
-                    frameRatingWindowId = window.id;
-                    activeRendererWindowId = window.id;
-                    if (xServerView != null) xServerView.getRenderer().setFpsWindowId(window.id);
-                    if (classicHud != null) classicHud.update();
-                    if (modernHud != null) modernHud.onFrame();
+                @Override
+                public void onModifyWindowProperty(
+                    Window window,
+                    Property property
+                ) {
+                    changeFrameRatingVisibility(window, property);
+                }
+
+                @Override
+                public void onDestroyWindow(Window window) {
+                    changeFrameRatingVisibility(window, null);
                 }
             }
-
-            @Override
-            public void onMapWindow(Window window) {
-                assignTaskAffinity(window);
-            }
-
-            @Override
-            public void onModifyWindowProperty(Window window, Property property) {
-                changeFrameRatingVisibility(window, property);
-            }
-
-            @Override
-            public void onDestroyWindow(Window window) {
-                changeFrameRatingVisibility(window, null);
-            }
-        });
+        );
 
         if (!midiSoundFont.equals("")) {
             try {
                 final InputStream in;
                 if (midiSoundFont.equals(MidiManager.DEFAULT_SF2_FILE)) {
-                    in = getAssets().open(MidiManager.SF2_ASSETS_DIR + "/" + midiSoundFont);
+                    in = getAssets().open(
+                        MidiManager.SF2_ASSETS_DIR + "/" + midiSoundFont
+                    );
                 } else {
                     in = null;
                 }
-                MidiManager.OnMidiLoadedCallback callback = new MidiManager.OnMidiLoadedCallback() {
-                    @Override
-                    public void onSuccess(SF2Soundbank soundbank) {
-                        midiHandler = new MidiHandler();
-                        midiHandler.setSoundBank(soundbank);
-                        midiHandler.start();
-                    }
+                MidiManager.OnMidiLoadedCallback callback =
+                    new MidiManager.OnMidiLoadedCallback() {
+                        @Override
+                        public void onSuccess(SF2Soundbank soundbank) {
+                            midiHandler = new MidiHandler();
+                            midiHandler.setSoundBank(soundbank);
+                            midiHandler.start();
+                        }
 
-                    @Override
-                    public void onFailed(Exception e) {
-                        if (in != null) {
-                            try {
-                                in.close();
-                            } catch (Exception e2) {
+                        @Override
+                        public void onFailed(Exception e) {
+                            if (in != null) {
+                                try {
+                                    in.close();
+                                } catch (Exception e2) {}
                             }
                         }
-                    }
-                };
+                    };
                 if (midiSoundFont.equals(MidiManager.DEFAULT_SF2_FILE)) {
                     MidiManager.load(in, callback);
                 } else {
-                    MidiManager.load(new File(MidiManager.getSoundFontDir(this), midiSoundFont), callback);
+                    MidiManager.load(
+                        new File(
+                            MidiManager.getSoundFontDir(this),
+                            midiSoundFont
+                        ),
+                        callback
+                    );
                 }
-            } catch (Exception e) {
-            }
+            } catch (Exception e) {}
         }
 
-        String controlsProfile = shortcut != null ? shortcut.getExtra("controlsProfile", "") : "";
+        String controlsProfile =
+            shortcut != null ? shortcut.getExtra("controlsProfile", "") : "";
 
         createNotifcationChannel();
 
-        Intent notificationIntent = new Intent(this, XServerDisplayActivity.class);
-        PendingIntent pendingIntent = PendingIntent.getActivity(this, 0, notificationIntent,
-                PendingIntent.FLAG_IMMUTABLE);
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
-                .setContentTitle("Winlator")
-                .setContentText("Winlator is running, do not kill or swipe this notification")
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
-                .setContentIntent(pendingIntent)
-                .setAutoCancel(false);
+        Intent notificationIntent = new Intent(
+            this,
+            XServerDisplayActivity.class
+        );
+        PendingIntent pendingIntent = PendingIntent.getActivity(
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_IMMUTABLE
+        );
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(
+            this,
+            NOTIFICATION_CHANNEL_ID
+        )
+            .setSmallIcon(R.drawable.ic_stat_ab_gear_0011)
+            .setContentTitle("Winlator")
+            .setContentText(
+                "Winlator is running, do not kill or swipe this notification"
+            )
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(false);
 
-        NotificationManagerCompat.from(this).notify(NOTIFICATION_ID, builder.build());
+        NotificationManagerCompat.from(this).notify(
+            NOTIFICATION_ID,
+            builder.build()
+        );
 
         Runnable runnable = () -> {
             setupUI();
             setupSidebarInputControls();
             if (controlsProfile.isEmpty()) {
-
                 simulateConfirmInputControlsDialog();
             }
             Executors.newSingleThreadExecutor().execute(() -> {
@@ -606,31 +751,43 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (xServer.screenInfo.height > xServer.screenInfo.width) {
             setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
             configChangedCallback = runnable;
-        } else
-            runnable.run();
+        } else runnable.run();
     }
 
     private int parseContainerIdFromDesktopFile(File desktopFile) {
         int containerId = 0;
         if (desktopFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(desktopFile))) {
+            try (
+                BufferedReader reader = new BufferedReader(
+                    new FileReader(desktopFile)
+                )
+            ) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.startsWith("container_id:")) {
-                        containerId = Integer.parseInt(line.split(":")[1].trim());
+                        containerId = Integer.parseInt(
+                            line.split(":")[1].trim()
+                        );
                         break;
                     }
                 }
             } catch (IOException | NumberFormatException e) {
-                Log.e("XServerDisplayActivity", "Error parsing container_id from .desktop file", e);
+                Log.e(
+                    "XServerDisplayActivity",
+                    "Error parsing container_id from .desktop file",
+                    e
+                );
             }
         }
         return containerId;
     }
 
     private boolean parseBoolean(String value) {
-
-        if ("true".equalsIgnoreCase(value) || "1".equals(value) || "yes".equalsIgnoreCase(value)) {
+        if (
+            "true".equalsIgnoreCase(value) ||
+            "1".equals(value) ||
+            "yes".equalsIgnoreCase(value)
+        ) {
             return true;
         }
 
@@ -642,57 +799,111 @@ public class XServerDisplayActivity extends AppCompatActivity {
             case MotionEvent.ACTION_BUTTON_PRESS: {
                 int button = event.getActionButton();
                 if (button == MotionEvent.BUTTON_PRIMARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0);
-                    else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_LEFT);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(MouseEventFlags.LEFTDOWN, 0, 0, 0);
+                    else xServer.injectPointerButtonPress(
+                        Pointer.Button.BUTTON_LEFT
+                    );
                 } else if (button == MotionEvent.BUTTON_SECONDARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0);
-                    else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_RIGHT);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(MouseEventFlags.RIGHTDOWN, 0, 0, 0);
+                    else xServer.injectPointerButtonPress(
+                        Pointer.Button.BUTTON_RIGHT
+                    );
                 } else if (button == MotionEvent.BUTTON_TERTIARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.MIDDLEDOWN, 0, 0, 0);
-                    else xServer.injectPointerButtonPress(Pointer.Button.BUTTON_MIDDLE);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(
+                        MouseEventFlags.MIDDLEDOWN,
+                        0,
+                        0,
+                        0
+                    );
+                    else xServer.injectPointerButtonPress(
+                        Pointer.Button.BUTTON_MIDDLE
+                    );
                 }
                 break;
             }
             case MotionEvent.ACTION_BUTTON_RELEASE: {
                 int button = event.getActionButton();
                 if (button == MotionEvent.BUTTON_PRIMARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0);
-                    else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_LEFT);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(MouseEventFlags.LEFTUP, 0, 0, 0);
+                    else xServer.injectPointerButtonRelease(
+                        Pointer.Button.BUTTON_LEFT
+                    );
                 } else if (button == MotionEvent.BUTTON_SECONDARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0);
-                    else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_RIGHT);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(MouseEventFlags.RIGHTUP, 0, 0, 0);
+                    else xServer.injectPointerButtonRelease(
+                        Pointer.Button.BUTTON_RIGHT
+                    );
                 } else if (button == MotionEvent.BUTTON_TERTIARY) {
-                    if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(MouseEventFlags.MIDDLEUP, 0, 0, 0);
-                    else xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_MIDDLE);
+                    if (
+                        xServer.isRelativeMouseMovement()
+                    ) winHandler.mouseEvent(MouseEventFlags.MIDDLEUP, 0, 0, 0);
+                    else xServer.injectPointerButtonRelease(
+                        Pointer.Button.BUTTON_MIDDLE
+                    );
                 }
                 break;
             }
             case MotionEvent.ACTION_MOVE:
             case MotionEvent.ACTION_HOVER_MOVE: {
-                float[] p = XForm.transformPoint(xform, event.getX(), event.getY());
+                float[] p = XForm.transformPoint(
+                    xform,
+                    event.getX(),
+                    event.getY()
+                );
                 int dx = (int) p[0];
                 int dy = (int) p[1];
-                if (xServer.isRelativeMouseMovement())
-                    winHandler.mouseEvent(MouseEventFlags.MOVE, dx, dy, 0);
-                else
-                    xServer.injectPointerMoveDelta(dx, dy);
+                if (xServer.isRelativeMouseMovement()) winHandler.mouseEvent(
+                    MouseEventFlags.MOVE,
+                    dx,
+                    dy,
+                    0
+                );
+                else xServer.injectPointerMoveDelta(dx, dy);
                 break;
             }
             case MotionEvent.ACTION_SCROLL: {
                 float scrollY = event.getAxisValue(MotionEvent.AXIS_VSCROLL);
                 if (scrollY <= -1.0f) {
                     if (xServer.isRelativeMouseMovement()) {
-                        winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, (int) scrollY * 270);
+                        winHandler.mouseEvent(
+                            MouseEventFlags.WHEEL,
+                            0,
+                            0,
+                            (int) scrollY * 270
+                        );
                     } else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_DOWN);
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_DOWN);
+                        xServer.injectPointerButtonPress(
+                            Pointer.Button.BUTTON_SCROLL_DOWN
+                        );
+                        xServer.injectPointerButtonRelease(
+                            Pointer.Button.BUTTON_SCROLL_DOWN
+                        );
                     }
                 } else if (scrollY >= 1.0f) {
                     if (xServer.isRelativeMouseMovement()) {
-                        winHandler.mouseEvent(MouseEventFlags.WHEEL, 0, 0, (int) scrollY * 270);
+                        winHandler.mouseEvent(
+                            MouseEventFlags.WHEEL,
+                            0,
+                            0,
+                            (int) scrollY * 270
+                        );
                     } else {
-                        xServer.injectPointerButtonPress(Pointer.Button.BUTTON_SCROLL_UP);
-                        xServer.injectPointerButtonRelease(Pointer.Button.BUTTON_SCROLL_UP);
+                        xServer.injectPointerButtonPress(
+                            Pointer.Button.BUTTON_SCROLL_UP
+                        );
+                        xServer.injectPointerButtonRelease(
+                            Pointer.Button.BUTTON_SCROLL_UP
+                        );
                     }
                 }
                 break;
@@ -701,9 +912,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+    protected void onActivityResult(
+        int requestCode,
+        int resultCode,
+        @Nullable Intent data
+    ) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == MainActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE && resultCode == Activity.RESULT_OK) {
+        if (
+            requestCode == MainActivity.EDIT_INPUT_CONTROLS_REQUEST_CODE &&
+            resultCode == Activity.RESULT_OK
+        ) {
             if (editInputControlsCallback != null) {
                 editInputControlsCallback.run();
                 editInputControlsCallback = null;
@@ -721,8 +939,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
         startTime = System.currentTimeMillis();
         handler.postDelayed(savePlaytimeRunnable, SAVE_INTERVAL_MS);
-        if (!isInPictureInPictureMode())
-            ProcessHelper.resumeAllWineProcesses();
+        if (!isInPictureInPictureMode()) ProcessHelper.resumeAllWineProcesses();
     }
 
     @Override
@@ -747,22 +964,36 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return;
         int w = xServer.screenInfo.width;
         int h = xServer.screenInfo.height;
-        PictureInPictureParams.Builder builder = new PictureInPictureParams.Builder()
-                .setAspectRatio(new Rational(w, h));
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && xServerView != null) {
+        PictureInPictureParams.Builder builder =
+            new PictureInPictureParams.Builder().setAspectRatio(
+                new Rational(w, h)
+            );
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+            xServerView != null
+        ) {
             int[] loc = new int[2];
             xServerView.getLocationOnScreen(loc);
-            Rect hint = new Rect(loc[0], loc[1],
-                    loc[0] + xServerView.getWidth(), loc[1] + xServerView.getHeight());
+            Rect hint = new Rect(
+                loc[0],
+                loc[1],
+                loc[0] + xServerView.getWidth(),
+                loc[1] + xServerView.getHeight()
+            );
             builder.setSourceRectHint(hint);
         }
         enterPictureInPictureMode(builder.build());
     }
 
     @Override
-    public void onPictureInPictureModeChanged(boolean isInPictureInPictureMode,
-            Configuration newConfig) {
-        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig);
+    public void onPictureInPictureModeChanged(
+        boolean isInPictureInPictureMode,
+        Configuration newConfig
+    ) {
+        super.onPictureInPictureModeChanged(
+            isInPictureInPictureMode,
+            newConfig
+        );
         if (xServerView == null) return;
         xServerView.getRenderer().setPipMode(isInPictureInPictureMode);
         if (!isInPictureInPictureMode) {
@@ -770,7 +1001,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (xServerView == null) return;
                 int w = xServerView.getWidth();
                 int h = xServerView.getHeight();
-                if (w > 0 && h > 0) xServerView.getRenderer().onSurfaceChanged(w, h);
+                if (w > 0 && h > 0) xServerView
+                    .getRenderer()
+                    .onSurfaceChanged(w, h);
             });
         }
     }
@@ -803,9 +1036,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void exit() {
         NotificationManagerCompat.from(this).cancel(NOTIFICATION_ID);
-        boolean removeLoadingBar = PreferenceManager.getDefaultSharedPreferences(this)
-                .getBoolean("remove_loading_bar_when_booting_games", false);
-        if (!removeLoadingBar) preloaderDialog.showOnUiThread(R.string.shutdown);
+        boolean removeLoadingBar =
+            PreferenceManager.getDefaultSharedPreferences(this).getBoolean(
+                "remove_loading_bar_when_booting_games",
+                false
+            );
+        if (!removeLoadingBar) preloaderDialog.showOnUiThread(
+            R.string.shutdown
+        );
 
         if (xServerView != null) {
             xServerView.getRenderer().forceCleanup();
@@ -815,25 +1053,19 @@ public class XServerDisplayActivity extends AppCompatActivity {
         savePlaytimeData();
         handler.removeCallbacks(savePlaytimeRunnable);
 
-        if (midiHandler != null)
-            midiHandler.stop();
+        if (midiHandler != null) midiHandler.stop();
 
-        if (environment != null)
-            environment.stopEnvironmentComponents();
-        if (winHandler != null)
-            winHandler.stop();
-        if (wineRequestHandler != null)
-            wineRequestHandler.stop();
+        if (environment != null) environment.stopEnvironmentComponents();
+        if (winHandler != null) winHandler.stop();
+        if (wineRequestHandler != null) wineRequestHandler.stop();
 
         Executors.newSingleThreadExecutor().execute(() -> {
-
             ProcessHelper.terminateAllWineProcesses();
 
             long start = System.currentTimeMillis();
             while (!ProcessHelper.listRunningWineProcesses().isEmpty()) {
                 long elapsed = System.currentTimeMillis() - start;
                 if (elapsed >= 1500) {
-
                     for (String pid : ProcessHelper.listRunningWineProcesses()) {
                         ProcessHelper.killProcess(Integer.parseInt(pid));
                     }
@@ -868,14 +1100,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (environment != null) {
             if (!drawerLayout.isDrawerOpen(GravityCompat.START)) {
                 drawerLayout.openDrawer(GravityCompat.START);
-            } else
-                drawerLayout.closeDrawers();
+            } else drawerLayout.closeDrawers();
         }
     }
 
     private void showVibrationDialog() {
-        if (winHandler == null)
-            return;
+        if (winHandler == null) return;
 
         Context context = this;
         int maxControllers = winHandler.getMaxControllers();
@@ -888,22 +1118,24 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         new androidx.appcompat.app.AlertDialog.Builder(context)
-                .setTitle(R.string.vibration)
-                .setMultiChoiceItems(items, checkedItems, (dialog, which, isChecked) -> {
+            .setTitle(R.string.vibration)
+            .setMultiChoiceItems(
+                items,
+                checkedItems,
+                (dialog, which, isChecked) -> {
                     winHandler.setVibrationEnabledForSlot(which, isChecked);
-                })
-                .setPositiveButton(R.string.ok, null)
-                .show();
+                }
+            )
+            .setPositiveButton(R.string.ok, null)
+            .show();
     }
 
     @Override
     public void onWindowFocusChanged(boolean hasFocus) {
         super.onWindowFocusChanged(hasFocus);
 
-        if (hasFocus && cursorLock)
-            touchpadView.requestPointerCapture();
-        else if (!hasFocus)
-            touchpadView.releasePointerCapture();
+        if (hasFocus && cursorLock) touchpadView.requestPointerCapture();
+        else if (!hasFocus) touchpadView.releasePointerCapture();
     }
 
     private void setupWineSystemFiles() {
@@ -920,7 +1152,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (dxwrapper.contains("dxvk")) {
             String dxvkWrapper = "dxvk-" + dxwrapperConfig.get("version");
-            String vkd3dWrapper = "vkd3d-" + dxwrapperConfig.get("vkd3dVersion");
+            String vkd3dWrapper =
+                "vkd3d-" + dxwrapperConfig.get("vkd3dVersion");
             String ddrawrapper = dxwrapperConfig.get("ddrawrapper");
             dxwrapper = dxvkWrapper + ";" + vkd3dWrapper + ";" + ddrawrapper;
         }
@@ -931,7 +1164,12 @@ public class XServerDisplayActivity extends AppCompatActivity {
             containerDataChanged = true;
         }
 
-        String wincomponents = shortcut != null ? shortcut.getExtra("wincomponents", container.getWinComponents())
+        String wincomponents =
+            shortcut != null
+                ? shortcut.getExtra(
+                      "wincomponents",
+                      container.getWinComponents()
+                  )
                 : container.getWinComponents();
         if (!wincomponents.equals(container.getExtra("wincomponents"))) {
             extractWinComponentFiles();
@@ -940,9 +1178,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         String desktopTheme = container.getDesktopTheme();
-        if (!(desktopTheme + "," + xServer.screenInfo).equals(container.getExtra("desktopTheme"))) {
-            WineThemeManager.apply(this, new WineThemeManager.ThemeInfo(desktopTheme), xServer.screenInfo);
-            container.putExtra("desktopTheme", desktopTheme + "," + xServer.screenInfo);
+        if (
+            !(desktopTheme + "," + xServer.screenInfo).equals(
+                container.getExtra("desktopTheme")
+            )
+        ) {
+            WineThemeManager.apply(
+                this,
+                new WineThemeManager.ThemeInfo(desktopTheme),
+                xServer.screenInfo
+            );
+            container.putExtra(
+                "desktopTheme",
+                desktopTheme + "," + xServer.screenInfo
+            );
             containerDataChanged = true;
         }
 
@@ -956,67 +1205,91 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 inputType = Byte.parseByte(shortcutInputType);
             }
         }
-        boolean dinputEnabled = (inputType & WinHandler.FLAG_INPUT_TYPE_DINPUT) == WinHandler.FLAG_INPUT_TYPE_DINPUT;
+        boolean dinputEnabled =
+            (inputType & WinHandler.FLAG_INPUT_TYPE_DINPUT) ==
+            WinHandler.FLAG_INPUT_TYPE_DINPUT;
 
         boolean exclusiveXInput = container.isExclusiveXInput();
         if (shortcut != null) {
             String extra = shortcut.getExtra("exclusiveXInput");
-            if (!extra.isEmpty())
-                exclusiveXInput = extra.equals("1");
+            if (!extra.isEmpty()) exclusiveXInput = extra.equals("1");
         }
 
-        WineUtils.setJoystickRegistryKeys(container, dinputEnabled, exclusiveXInput);
+        WineUtils.setJoystickRegistryKeys(
+            container,
+            dinputEnabled,
+            exclusiveXInput
+        );
 
-        if (shortcut != null)
-            startupSelection = shortcut.getExtra("startupSelection", String.valueOf(container.getStartupSelection()));
-        else
-            startupSelection = String.valueOf(container.getStartupSelection());
+        if (shortcut != null) startupSelection = shortcut.getExtra(
+            "startupSelection",
+            String.valueOf(container.getStartupSelection())
+        );
+        else startupSelection = String.valueOf(container.getStartupSelection());
 
         if (!startupSelection.equals(container.getExtra("startupSelection"))) {
             WineUtils.changeServicesStatus(container, startupSelection);
             container.putExtra("startupSelection", startupSelection);
             containerDataChanged = true;
         }
-        if (containerDataChanged)
-            container.saveData();
+        if (containerDataChanged) container.saveData();
     }
 
-    private void setupXEnvironment() throws PackageManager.NameNotFoundException {
-
+    private void setupXEnvironment()
+        throws PackageManager.NameNotFoundException {
         envVars.put("LC_ALL", lc_all);
         envVars.put("WINEPREFIX", imageFs.wineprefix);
 
-        boolean enableWineDebug = preferences.getBoolean("enable_wine_debug", false);
-        String wineDebugChannels = preferences.getString("wine_debug_channels",
-                SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS);
-        envVars.put("WINEDEBUG", enableWineDebug && !wineDebugChannels.isEmpty()
+        boolean enableWineDebug = preferences.getBoolean(
+            "enable_wine_debug",
+            false
+        );
+        String wineDebugChannels = preferences.getString(
+            "wine_debug_channels",
+            SettingsFragment.DEFAULT_WINE_DEBUG_CHANNELS
+        );
+        envVars.put(
+            "WINEDEBUG",
+            enableWineDebug && !wineDebugChannels.isEmpty()
                 ? "+" + wineDebugChannels.replace(",", ",+")
-                : "-all");
+                : "-all"
+        );
 
         String rootPath = imageFs.getRootDir().getPath();
         FileUtils.clear(imageFs.getTmpDir());
 
         guestProgramLauncherComponent = new GuestProgramLauncherComponent(
-                contentsManager,
-                contentsManager.getProfileByEntryName(container.getWineVersion()),
-                shortcut);
+            contentsManager,
+            contentsManager.getProfileByEntryName(container.getWineVersion()),
+            shortcut
+        );
 
         if (container != null) {
-            if (Byte.parseByte(startupSelection) == Container.STARTUP_SELECTION_AGGRESSIVE) {
-
+            if (
+                Byte.parseByte(startupSelection) ==
+                Container.STARTUP_SELECTION_AGGRESSIVE
+            ) {
             }
             guestProgramLauncherComponent.setContainer(this.container);
             guestProgramLauncherComponent.setWineInfo(this.wineInfo);
 
-            String desktopName = shortcut != null || getIntent().hasExtra("exec_path") ? "nogui" : "shell";
-            String guestExecutable = "wine explorer /desktop=" + desktopName + "," + xServer.screenInfo + " " + getWineStartCommand();
+            String desktopName =
+                shortcut != null || getIntent().hasExtra("exec_path")
+                    ? "nogui"
+                    : "shell";
+            String guestExecutable =
+                "wine explorer /desktop=" +
+                desktopName +
+                "," +
+                xServer.screenInfo +
+                " " +
+                getWineStartCommand();
 
             guestProgramLauncherComponent.setGuestExecutable(guestExecutable);
 
             envVars.putAll(container.getEnvVars());
 
-            if (shortcut != null)
-                envVars.putAll(shortcut.getExtra("envVars"));
+            if (shortcut != null) envVars.putAll(shortcut.getExtra("envVars"));
 
             if (!wineCpuTopologyValue.isEmpty()) {
                 envVars.put("WINE_CPU_TOPOLOGY", wineCpuTopologyValue);
@@ -1031,17 +1304,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 bindingPaths.add(drive[1]);
             }
 
-            guestProgramLauncherComponent.setBindingPaths(bindingPaths.toArray(new String[0]));
+            guestProgramLauncherComponent.setBindingPaths(
+                bindingPaths.toArray(new String[0])
+            );
 
             guestProgramLauncherComponent.setBox64Preset(
-                    shortcut != null
-                            ? shortcut.getExtra("box64Preset", container.getBox64Preset())
-                            : container.getBox64Preset());
+                shortcut != null
+                    ? shortcut.getExtra(
+                          "box64Preset",
+                          container.getBox64Preset()
+                      )
+                    : container.getBox64Preset()
+            );
 
             guestProgramLauncherComponent.setFEXCorePreset(
-                    shortcut != null
-                            ? shortcut.getExtra("fexcorePreset", container.getFEXCorePreset())
-                            : container.getFEXCorePreset());
+                shortcut != null
+                    ? shortcut.getExtra(
+                          "fexcorePreset",
+                          container.getFEXCorePreset()
+                      )
+                    : container.getFEXCorePreset()
+            );
         }
 
         if (overrideEnvVars != null) {
@@ -1051,46 +1334,71 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         environment = new XEnvironment(this, imageFs);
         environment.addComponent(
-                new SysVSharedMemoryComponent(
-                        xServer,
-                        UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.SYSVSHM_SERVER_PATH)));
+            new SysVSharedMemoryComponent(
+                xServer,
+                UnixSocketConfig.createSocket(
+                    rootPath,
+                    UnixSocketConfig.SYSVSHM_SERVER_PATH
+                )
+            )
+        );
         environment.addComponent(
-                new XServerComponent(
-                        xServer,
-                        UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.XSERVER_PATH)));
+            new XServerComponent(
+                xServer,
+                UnixSocketConfig.createSocket(
+                    rootPath,
+                    UnixSocketConfig.XSERVER_PATH
+                )
+            )
+        );
 
         if (audioDriver.equals("alsa")) {
-            envVars.put("ANDROID_ALSA_SERVER", rootPath + UnixSocketConfig.ALSA_SERVER_PATH);
+            envVars.put(
+                "ANDROID_ALSA_SERVER",
+                rootPath + UnixSocketConfig.ALSA_SERVER_PATH
+            );
             envVars.put("ANDROID_ASERVER_USE_SHM", "true");
             environment.addComponent(
-                    new ALSAServerComponent(
-                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.ALSA_SERVER_PATH)));
+                new ALSAServerComponent(
+                    UnixSocketConfig.createSocket(
+                        rootPath,
+                        UnixSocketConfig.ALSA_SERVER_PATH
+                    )
+                )
+            );
         } else if (audioDriver.equals("pulseaudio")) {
-            envVars.put("PULSE_SERVER", rootPath + UnixSocketConfig.PULSE_SERVER_PATH);
+            envVars.put(
+                "PULSE_SERVER",
+                rootPath + UnixSocketConfig.PULSE_SERVER_PATH
+            );
             environment.addComponent(
-                    new PulseAudioComponent(
-                            UnixSocketConfig.createSocket(rootPath, UnixSocketConfig.PULSE_SERVER_PATH)));
+                new PulseAudioComponent(
+                    UnixSocketConfig.createSocket(
+                        rootPath,
+                        UnixSocketConfig.PULSE_SERVER_PATH
+                    )
+                )
+            );
         }
 
         guestProgramLauncherComponent.setEnvVars(envVars);
-        guestProgramLauncherComponent.setTerminationCallback((status) -> runOnUiThread(this::exit));
+        guestProgramLauncherComponent.setTerminationCallback(status ->
+            runOnUiThread(this::exit)
+        );
 
         environment.addComponent(guestProgramLauncherComponent);
 
         File devInputDir = new File(imageFs.getRootDir(), "dev/input");
         if (devInputDir.exists() || devInputDir.mkdirs()) {
-
         }
 
         environment.startEnvironmentComponents();
 
         winHandler.start();
 
-        if (wineRequestHandler != null)
-            wineRequestHandler.start();
+        if (wineRequestHandler != null) wineRequestHandler.start();
 
         dxwrapperConfig = null;
-
     }
 
     private void createWrapperScript(String path, String content) {
@@ -1105,30 +1413,67 @@ public class XServerDisplayActivity extends AppCompatActivity {
         final VulkanRenderer renderer = xServerView.getRenderer();
         renderer.setCursorVisible(false);
 
-        String rendererDriverId = shortcut != null ? shortcut.getRendererDriverId()
-                : (container != null ? container.getRendererDriverId() : "");
+        String rendererDriverId =
+            shortcut != null
+                ? shortcut.getRendererDriverId()
+                : container != null
+                  ? container.getRendererDriverId()
+                  : "";
         if (rendererDriverId == null || rendererDriverId.isEmpty()) {
-            rendererDriverId = graphicsDriverConfig != null ? graphicsDriverConfig.get("version") : null;
+            rendererDriverId =
+                graphicsDriverConfig != null
+                    ? graphicsDriverConfig.get("version")
+                    : null;
         }
-        if (rendererDriverId != null && !rendererDriverId.isEmpty() && !rendererDriverId.equalsIgnoreCase("system")) {
+        if (
+            rendererDriverId != null &&
+            !rendererDriverId.isEmpty() &&
+            !rendererDriverId.equalsIgnoreCase("system")
+        ) {
             try {
-                String driverPath = getFilesDir().getAbsolutePath() + "/contents/adrenotools/" + rendererDriverId + "/";
-                AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
-                String libraryName = adrenotoolsManager.getLibraryName(rendererDriverId);
+                String driverPath =
+                    getFilesDir().getAbsolutePath() +
+                    "/contents/adrenotools/" +
+                    rendererDriverId +
+                    "/";
+                AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(
+                    this
+                );
+                String libraryName = adrenotoolsManager.getLibraryName(
+                    rendererDriverId
+                );
                 String nativeLibDir = AppUtils.getNativeLibDir(this);
-                if (!libraryName.isEmpty())
-                    renderer.setDriverInfo(driverPath, libraryName, nativeLibDir);
-            } catch (Exception ignored) {
-            }
+                if (!libraryName.isEmpty()) renderer.setDriverInfo(
+                    driverPath,
+                    libraryName,
+                    nativeLibDir
+                );
+            } catch (Exception ignored) {}
         }
 
-        String presentMode = shortcut != null ? shortcut.getRendererPresentMode()
-                : (container != null ? container.getRendererPresentMode() : "fifo");
-        renderer.setVkPresentMode(dev.lcehub.emerald.contentdialog.RendererOptionsDialog.toVkPresentMode(presentMode));
-        renderer.setFilterMode(shortcut != null ? shortcut.getRendererFilterMode()
-                : (container != null ? container.getRendererFilterMode() : 0));
-        renderer.setSwapRB(shortcut != null ? shortcut.getRendererSwapRB()
-                : (container != null && container.getRendererSwapRB()));
+        String presentMode =
+            shortcut != null
+                ? shortcut.getRendererPresentMode()
+                : container != null
+                  ? container.getRendererPresentMode()
+                  : "fifo";
+        renderer.setVkPresentMode(
+            dev.lcehub.emerald.contentdialog.RendererOptionsDialog.toVkPresentMode(
+                presentMode
+            )
+        );
+        renderer.setFilterMode(
+            shortcut != null
+                ? shortcut.getRendererFilterMode()
+                : container != null
+                  ? container.getRendererFilterMode()
+                  : 0
+        );
+        renderer.setSwapRB(
+            shortcut != null
+                ? shortcut.getRendererSwapRB()
+                : container != null && container.getRendererSwapRB()
+        );
 
         if (shortcut != null) {
             renderer.setUnviewableWMClasses("explorer.exe");
@@ -1138,34 +1483,54 @@ public class XServerDisplayActivity extends AppCompatActivity {
         rootView.addView(xServerView);
 
         globalCursorSpeed = preferences.getFloat("cursor_speed", 1.0f);
-        touchpadView = new TouchpadView(this, xServer, timeoutHandler, hideControlsRunnable);
+        touchpadView = new TouchpadView(
+            this,
+            xServer,
+            timeoutHandler,
+            hideControlsRunnable
+        );
         touchpadView.setSensitivity(globalCursorSpeed);
         touchpadView.setMouseEnabled(!isMouseDisabled);
         touchpadView.setFourFingersTapCallback(() -> {
-            if (!drawerLayout.isDrawerOpen(GravityCompat.START))
-                drawerLayout.openDrawer(GravityCompat.START);
+            if (
+                !drawerLayout.isDrawerOpen(GravityCompat.START)
+            ) drawerLayout.openDrawer(GravityCompat.START);
         });
-        View.OnCapturedPointerListener capturedPointerListener = new View.OnCapturedPointerListener() {
-            @Override
-            public boolean onCapturedPointer(View view, MotionEvent event) {
-                handleCapturedPointer(event);
-                return true;
-            }
-        };
-        touchpadView.setOnCapturedPointerListener(cursorLock ? capturedPointerListener : null);
+        View.OnCapturedPointerListener capturedPointerListener =
+            new View.OnCapturedPointerListener() {
+                @Override
+                public boolean onCapturedPointer(View view, MotionEvent event) {
+                    handleCapturedPointer(event);
+                    return true;
+                }
+            };
+        touchpadView.setOnCapturedPointerListener(
+            cursorLock ? capturedPointerListener : null
+        );
         touchpadView.setFocusable(true);
         touchpadView.setFocusableInTouchMode(true);
         rootView.addView(touchpadView);
 
-        inputControlsView = new InputControlsView(this, timeoutHandler, hideControlsRunnable);
-        inputControlsView
-                .setOverlayOpacity(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY));
+        inputControlsView = new InputControlsView(
+            this,
+            timeoutHandler,
+            hideControlsRunnable
+        );
+        inputControlsView.setOverlayOpacity(
+            preferences.getFloat(
+                "overlay_opacity",
+                InputControlsView.DEFAULT_OVERLAY_OPACITY
+            )
+        );
         inputControlsView.setTouchpadView(touchpadView);
         inputControlsView.setXServer(xServer);
         inputControlsView.setVisibility(View.GONE);
         rootView.addView(inputControlsView);
 
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
+        boolean isTimeoutEnabled = preferences.getBoolean(
+            "touchscreen_timeout_enabled",
+            false
+        );
         if (isTimeoutEnabled) {
             startTouchscreenTimeout();
         }
@@ -1173,17 +1538,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (container != null) {
             String hudModeExtra = container.getExtra("hudMode");
             int hudMode = !hudModeExtra.isEmpty()
-                    ? Integer.parseInt(hudModeExtra)
-                    : (container.isShowFPS() ? 1 : 0);
+                ? Integer.parseInt(hudModeExtra)
+                : container.isShowFPS()
+                  ? 1
+                  : 0;
 
             if (hudMode == 1) {
-
                 classicHud = new FrameRating(this, graphicsDriverConfig);
                 classicHud.setVisibility(View.GONE);
                 rootView.addView(classicHud);
                 renderer.setFrameRating(classicHud);
             } else if (hudMode == 2) {
-
                 modernHud = new WinlatorHUD(this);
                 modernHud.setVisibility(View.GONE);
                 rootView.addView(modernHud);
@@ -1192,20 +1557,18 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        String shortcutFullscreenStretched = shortcut != null ? shortcut.getExtra("fullscreenStretched") : null;
+        String shortcutFullscreenStretched =
+            shortcut != null ? shortcut.getExtra("fullscreenStretched") : null;
 
         boolean shouldStretch = false;
 
         if (shortcut != null && shortcutFullscreenStretched != null) {
-
             shouldStretch = shortcutFullscreenStretched.equals("1");
         } else if (container != null && container.isFullscreenStretched()) {
-
             shouldStretch = true;
         }
 
         if (shouldStretch) {
-
             renderer.toggleFullscreen();
             touchpadView.toggleFullscreen();
         }
@@ -1213,9 +1576,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (shortcut != null) {
             String controlsProfile = shortcut.getExtra("controlsProfile");
             if (!controlsProfile.isEmpty()) {
-                ControlsProfile profile = inputControlsManager.getProfile(Integer.parseInt(controlsProfile));
-                if (profile != null)
-                    showInputControls(profile);
+                ControlsProfile profile = inputControlsManager.getProfile(
+                    Integer.parseInt(controlsProfile)
+                );
+                if (profile != null) showInputControls(profile);
             }
 
             String simTouchScreen = shortcut.getExtra("simTouchScreen");
@@ -1225,25 +1589,34 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        AppUtils.observeSoftKeyboardVisibility(drawerLayout, renderer::setScreenOffsetYRelativeToCursor);
+        AppUtils.observeSoftKeyboardVisibility(
+            drawerLayout,
+            renderer::setScreenOffsetYRelativeToCursor
+        );
 
         setupSidebarHudControls();
         setupSidebarGraphicsControls();
     }
 
-    private ActivityResultLauncher<Intent> controlsEditorActivityResultLauncher = registerForActivityResult(
+    private ActivityResultLauncher<Intent> controlsEditorActivityResultLauncher =
+        registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (editInputControlsCallback != null) {
                     editInputControlsCallback.run();
                     editInputControlsCallback = null;
                 }
-            });
+            }
+        );
 
     private String parseShortcutNameFromDesktopFile(File desktopFile) {
         String shortcutName = "";
         if (desktopFile.exists()) {
-            try (BufferedReader reader = new BufferedReader(new FileReader(desktopFile))) {
+            try (
+                BufferedReader reader = new BufferedReader(
+                    new FileReader(desktopFile)
+                )
+            ) {
                 String line;
                 while ((line = reader.readLine()) != null) {
                     if (line.startsWith("Name=")) {
@@ -1252,7 +1625,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
                     }
                 }
             } catch (IOException e) {
-                Log.e("XServerDisplayActivity", "Error reading shortcut name from .desktop file", e);
+                Log.e(
+                    "XServerDisplayActivity",
+                    "Error reading shortcut name from .desktop file",
+                    e
+                );
             }
         }
         return shortcutName;
@@ -1262,25 +1639,24 @@ public class XServerDisplayActivity extends AppCompatActivity {
         for (int i = 0; i < viewGroup.getChildCount(); i++) {
             View child = viewGroup.getChildAt(i);
             if (child instanceof ViewGroup) {
-
                 setTextColorForDialog((ViewGroup) child, color);
             } else if (child instanceof TextView) {
-
                 ((TextView) child).setTextColor(color);
             }
         }
     }
 
     private void wireSidebarListeners(boolean enableLogs) {
-
         View btItemLogs = findViewById(R.id.BTItemLogs);
-        if (btItemLogs != null)
-            btItemLogs.setVisibility(enableLogs ? View.VISIBLE : View.GONE);
+        if (btItemLogs != null) btItemLogs.setVisibility(
+            enableLogs ? View.VISIBLE : View.GONE
+        );
 
         if (XrActivity.isEnabled(this)) {
             View btItemMagnifier = findViewById(R.id.BTItemMagnifier);
-            if (btItemMagnifier != null)
-                btItemMagnifier.setVisibility(View.GONE);
+            if (btItemMagnifier != null) btItemMagnifier.setVisibility(
+                View.GONE
+            );
         }
 
         toggleOnClick(R.id.BTItemInput, R.id.LLSubInput);
@@ -1296,10 +1672,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
             btItemPause.setOnClickListener(v -> {
                 if (isPaused) {
                     ProcessHelper.resumeAllWineProcesses();
-                    if (pauseIcon != null) pauseIcon.setImageResource(R.drawable.icon_pause);
+                    if (pauseIcon != null) pauseIcon.setImageResource(
+                        R.drawable.icon_pause
+                    );
                 } else {
                     ProcessHelper.pauseAllWineProcesses();
-                    if (pauseIcon != null) pauseIcon.setImageResource(R.drawable.icon_play);
+                    if (pauseIcon != null) pauseIcon.setImageResource(
+                        R.drawable.icon_play
+                    );
                 }
                 isPaused = !isPaused;
                 drawerLayout.closeDrawers();
@@ -1329,8 +1709,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             swRelativeMouse.setChecked(isRelativeMouseMovement);
             swRelativeMouse.setOnCheckedChangeListener((btn, checked) -> {
                 isRelativeMouseMovement = checked;
-                if (xServer != null)
-                    xServer.setRelativeMouseMovement(isRelativeMouseMovement);
+                if (xServer != null) xServer.setRelativeMouseMovement(
+                    isRelativeMouseMovement
+                );
             });
         }
 
@@ -1339,8 +1720,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             swDisableMouse.setChecked(isMouseDisabled);
             swDisableMouse.setOnCheckedChangeListener((btn, checked) -> {
                 isMouseDisabled = checked;
-                if (touchpadView != null)
-                    touchpadView.setMouseEnabled(!isMouseDisabled);
+                if (touchpadView != null) touchpadView.setMouseEnabled(
+                    !isMouseDisabled
+                );
             });
         }
 
@@ -1357,8 +1739,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
             btItemToggleFullscreen.setOnClickListener(v -> {
                 if (xServerView != null) {
                     xServerView.getRenderer().toggleFullscreen();
-                    if (touchpadView != null)
-                        touchpadView.toggleFullscreen();
+                    if (touchpadView != null) touchpadView.toggleFullscreen();
                 }
                 drawerLayout.closeDrawers();
             });
@@ -1370,11 +1751,21 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (xServerView != null) {
                     final VulkanRenderer renderer = xServerView.getRenderer();
                     if (magnifierView == null) {
-                        FrameLayout flContainer = findViewById(R.id.FLXServerDisplay);
+                        FrameLayout flContainer = findViewById(
+                            R.id.FLXServerDisplay
+                        );
                         magnifierView = new MagnifierView(this);
                         magnifierView.setZoomButtonCallback(value -> {
-                            renderer.setMagnifierZoom(Mathf.clamp(renderer.getMagnifierZoom() + value, 1.0f, 3.0f));
-                            magnifierView.setZoomValue(renderer.getMagnifierZoom());
+                            renderer.setMagnifierZoom(
+                                Mathf.clamp(
+                                    renderer.getMagnifierZoom() + value,
+                                    1.0f,
+                                    3.0f
+                                )
+                            );
+                            magnifierView.setZoomValue(
+                                renderer.getMagnifierZoom()
+                            );
                         });
                         magnifierView.setZoomValue(renderer.getMagnifierZoom());
                         magnifierView.setHideButtonCallback(() -> {
@@ -1397,7 +1788,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
                     if (softStretchEnabled && !rendererRef.isFullscreen()) {
                         rendererRef.toggleFullscreen();
-                        if (touchpadView != null) touchpadView.toggleFullscreen();
+                        if (
+                            touchpadView != null
+                        ) touchpadView.toggleFullscreen();
                     }
                     rendererRef.setStretchMode(softStretchEnabled ? 1 : 0);
                     btItemSoftStretch.setSelected(softStretchEnabled);
@@ -1412,8 +1805,8 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 openSidebarPanel(R.id.BTItemTaskManager, R.id.LLSubTaskManager);
                 View taskPanel = findViewById(R.id.LLSubTaskManager);
                 if (taskPanel != null) {
-                    if (taskManagerSidebar == null)
-                        taskManagerSidebar = new TaskManagerSidebar(this, taskPanel);
+                    if (taskManagerSidebar == null) taskManagerSidebar =
+                        new TaskManagerSidebar(this, taskPanel);
                     taskManagerSidebar.start();
                 }
             });
@@ -1421,8 +1814,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         if (btItemLogs != null) {
             btItemLogs.setOnClickListener(v -> {
-                if (debugDialog != null)
-                    debugDialog.show();
+                if (debugDialog != null) debugDialog.show();
                 drawerLayout.closeDrawers();
             });
         }
@@ -1445,7 +1837,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         R.id.LLSubFPS,
         R.id.LLSubGraphics,
         R.id.LLSubScreen,
-        R.id.LLSubTaskManager
+        R.id.LLSubTaskManager,
     };
 
     private final int[] sidebarItemIds = {
@@ -1454,7 +1846,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         R.id.BTItemFPS,
         R.id.BTItemGraphics,
         R.id.BTItemScreen,
-        R.id.BTItemTaskManager
+        R.id.BTItemTaskManager,
     };
 
     private void hideAllSidebarPanels() {
@@ -1473,15 +1865,30 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (itemId == activeId) {
                 GradientDrawable background = new GradientDrawable();
                 background.setColor(Color.parseColor("#1a1a00"));
-                background.setStroke((int) (1.1f * density), Color.parseColor("#FFFF55"));
+                background.setStroke(
+                    (int) (1.1f * density),
+                    Color.parseColor("#FFFF55")
+                );
                 background.setCornerRadius(density * 15);
                 item.setBackground(background);
-                item.animate().scaleX(1.025f).scaleY(1.025f).setDuration(105).start();
+                item.animate()
+                    .scaleX(1.025f)
+                    .scaleY(1.025f)
+                    .setDuration(105)
+                    .start();
             } else {
                 TypedValue outValue = new TypedValue();
-                getTheme().resolveAttribute(android.R.attr.selectableItemBackground, outValue, true);
+                getTheme().resolveAttribute(
+                    android.R.attr.selectableItemBackground,
+                    outValue,
+                    true
+                );
                 item.setBackgroundResource(outValue.resourceId);
-                item.animate().scaleX(1.0f).scaleY(1.0f).setDuration(90).start();
+                item.animate()
+                    .scaleX(1.0f)
+                    .scaleY(1.0f)
+                    .setDuration(90)
+                    .start();
             }
         }
     }
@@ -1494,7 +1901,11 @@ public class XServerDisplayActivity extends AppCompatActivity {
             sub.setVisibility(View.VISIBLE);
             sub.setAlpha(0.0f);
             sub.setTranslationX(-8.0f * density);
-            sub.animate().alpha(1.0f).translationX(0.0f).setDuration(130).start();
+            sub.animate()
+                .alpha(1.0f)
+                .translationX(0.0f)
+                .setDuration(130)
+                .start();
         }
         setSidebarActiveItem(parentId);
         if (parentId != R.id.BTItemMouse && parentId != R.id.BTItemPause) {
@@ -1512,11 +1923,23 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private ArrayAdapter<String> createSidebarSpinnerAdapter(String[] items) {
-        return new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, items) {
+        return new ArrayAdapter<String>(
+            this,
+            android.R.layout.simple_spinner_item,
+            items
+        ) {
             @NonNull
             @Override
-            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                TextView view = (TextView) super.getView(position, convertView, parent);
+            public View getView(
+                int position,
+                @Nullable View convertView,
+                @NonNull ViewGroup parent
+            ) {
+                TextView view = (TextView) super.getView(
+                    position,
+                    convertView,
+                    parent
+                );
                 view.setTextColor(Color.parseColor("#ffffff"));
                 view.setTextSize(14);
                 view.setSingleLine(true);
@@ -1524,8 +1947,16 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
 
             @Override
-            public View getDropDownView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                TextView view = (TextView) super.getDropDownView(position, convertView, parent);
+            public View getDropDownView(
+                int position,
+                @Nullable View convertView,
+                @NonNull ViewGroup parent
+            ) {
+                TextView view = (TextView) super.getDropDownView(
+                    position,
+                    convertView,
+                    parent
+                );
                 view.setTextColor(Color.parseColor("#ffffff"));
                 view.setBackgroundColor(Color.parseColor("#0d0d0d"));
                 view.setTextSize(14);
@@ -1535,46 +1966,68 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void setupSidebarHudControls() {
-        Switch       swHudMaster     = findViewById(R.id.SWHudMaster);
-        Spinner      spHudStyle      = findViewById(R.id.SPHudStyle);
-        LinearLayout llHudStyleRow   = findViewById(R.id.LLHudStyleRow);
+        Switch swHudMaster = findViewById(R.id.SWHudMaster);
+        Spinner spHudStyle = findViewById(R.id.SPHudStyle);
+        LinearLayout llHudStyleRow = findViewById(R.id.LLHudStyleRow);
         LinearLayout llModernOptions = findViewById(R.id.LLModernHudOptions);
-        CheckBox     cbFps           = findViewById(R.id.CBHudFps);
-        CheckBox     cbGpu           = findViewById(R.id.CBHudGpu);
-        CheckBox     cbCpuRam        = findViewById(R.id.CBHudCpuRam);
-        CheckBox     cbRam           = findViewById(R.id.CBHudRam);
-        CheckBox     cbBattTemp      = findViewById(R.id.CBHudBattTemp);
-        CheckBox     cbGraph         = findViewById(R.id.CBHudGraph);
-        CheckBox     cbRenderer      = findViewById(R.id.CBHudRenderer);
-        SeekBar      sbScale         = findViewById(R.id.SBHudScale);
-        SeekBar      sbAlpha         = findViewById(R.id.SBHudAlpha);
-        View         btResetHud      = findViewById(R.id.BTResetHud);
+        CheckBox cbFps = findViewById(R.id.CBHudFps);
+        CheckBox cbGpu = findViewById(R.id.CBHudGpu);
+        CheckBox cbCpuRam = findViewById(R.id.CBHudCpuRam);
+        CheckBox cbRam = findViewById(R.id.CBHudRam);
+        CheckBox cbBattTemp = findViewById(R.id.CBHudBattTemp);
+        CheckBox cbGraph = findViewById(R.id.CBHudGraph);
+        CheckBox cbRenderer = findViewById(R.id.CBHudRenderer);
+        SeekBar sbScale = findViewById(R.id.SBHudScale);
+        SeekBar sbAlpha = findViewById(R.id.SBHudAlpha);
+        View btResetHud = findViewById(R.id.BTResetHud);
 
         int currentMode = 0;
-        if      (modernHud  != null) currentMode = 2;
+        if (modernHud != null) currentMode = 2;
         else if (classicHud != null) currentMode = 1;
-        else if (container  != null) {
+        else if (container != null) {
             String extra = container.getExtra("hudMode");
-            if (!extra.isEmpty())           currentMode = Integer.parseInt(extra);
+            if (!extra.isEmpty()) currentMode = Integer.parseInt(extra);
             else if (container.isShowFPS()) currentMode = 1;
         }
 
-        boolean hudOn    = currentMode != 0;
+        boolean hudOn = currentMode != 0;
         boolean isModern = currentMode == 2;
 
         if (spHudStyle != null) {
-            ArrayAdapter<String> styleAdapter = createSidebarSpinnerAdapter(new String[]{"Classic", "Modern"});
-            styleAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            ArrayAdapter<String> styleAdapter = createSidebarSpinnerAdapter(
+                new String[] { "Classic", "Modern" }
+            );
+            styleAdapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spHudStyle.setAdapter(styleAdapter);
             spHudStyle.setSelection(isModern ? 1 : 0, false);
         }
-        if (llHudStyleRow  != null) llHudStyleRow.setVisibility(hudOn ? View.VISIBLE : View.GONE);
-        if (llModernOptions != null) llModernOptions.setVisibility(isModern ? View.VISIBLE : View.GONE);
+        if (llHudStyleRow != null) llHudStyleRow.setVisibility(
+            hudOn ? View.VISIBLE : View.GONE
+        );
+        if (llModernOptions != null) llModernOptions.setVisibility(
+            isModern ? View.VISIBLE : View.GONE
+        );
 
         if (modernHud != null) {
-            modernHud.syncCheckboxes(cbFps, cbGpu, cbCpuRam, cbBattTemp, cbGraph, cbRenderer);
+            modernHud.syncCheckboxes(
+                cbFps,
+                cbGpu,
+                cbCpuRam,
+                cbBattTemp,
+                cbGraph,
+                cbRenderer
+            );
             if (cbRam != null) cbRam.setChecked(true);
-            bindModernHudCheckboxes(cbFps, cbGpu, cbCpuRam, cbRam, cbBattTemp, cbRenderer);
+            bindModernHudCheckboxes(
+                cbFps,
+                cbGpu,
+                cbCpuRam,
+                cbRam,
+                cbBattTemp,
+                cbRenderer
+            );
         }
         if (sbScale != null) sbScale.setOnValueChangeListener((sb, v) -> {
             if (modernHud != null) modernHud.setHudScale(1f + (v - 50f) / 50f);
@@ -1592,47 +2045,100 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 int style = resolveSelectedStyle(spHudStyle);
                 if (checked) {
                     enableHudLazily(style);
-                    if (llHudStyleRow  != null) llHudStyleRow.setVisibility(View.VISIBLE);
-                    if (llModernOptions != null)
-                        llModernOptions.setVisibility(style == 2 ? View.VISIBLE : View.GONE);
+                    if (llHudStyleRow != null) llHudStyleRow.setVisibility(
+                        View.VISIBLE
+                    );
+                    if (llModernOptions != null) llModernOptions.setVisibility(
+                        style == 2 ? View.VISIBLE : View.GONE
+                    );
                     if (style == 2 && modernHud != null) {
-                        modernHud.syncCheckboxes(cbFps, cbGpu, cbCpuRam, cbBattTemp, cbGraph, cbRenderer);
+                        modernHud.syncCheckboxes(
+                            cbFps,
+                            cbGpu,
+                            cbCpuRam,
+                            cbBattTemp,
+                            cbGraph,
+                            cbRenderer
+                        );
                         if (cbRam != null) cbRam.setChecked(true);
-                        bindModernHudCheckboxes(cbFps, cbGpu, cbCpuRam, cbRam, cbBattTemp, cbRenderer);
+                        bindModernHudCheckboxes(
+                            cbFps,
+                            cbGpu,
+                            cbCpuRam,
+                            cbRam,
+                            cbBattTemp,
+                            cbRenderer
+                        );
                     }
                     saveHudModeToContainer(style);
                 } else {
                     if (classicHud != null) classicHud.disableByUser();
-                    if (modernHud  != null) modernHud.disableByUser();
-                    if (llHudStyleRow  != null) llHudStyleRow.setVisibility(View.GONE);
-                    if (llModernOptions != null) llModernOptions.setVisibility(View.GONE);
+                    if (modernHud != null) modernHud.disableByUser();
+                    if (llHudStyleRow != null) llHudStyleRow.setVisibility(
+                        View.GONE
+                    );
+                    if (llModernOptions != null) llModernOptions.setVisibility(
+                        View.GONE
+                    );
                     saveHudModeToContainer(0);
                 }
             });
         }
 
         if (spHudStyle != null) {
-            spHudStyle.post(() -> spHudStyle.setOnItemSelectedListener(
-                new AdapterView.OnItemSelectedListener() {
-                    @Override
-                    public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                        if (swHudMaster == null || !swHudMaster.isChecked()) return;
-                        int newStyle = (pos == 1) ? 2 : 1;
-                        if (classicHud != null) classicHud.disableByUser(false);
-                        if (modernHud  != null) modernHud.disableByUser(false);
-                        enableHudLazily(newStyle);
-                        if (llModernOptions != null)
-                            llModernOptions.setVisibility(newStyle == 2 ? View.VISIBLE : View.GONE);
-                        if (newStyle == 2 && modernHud != null) {
-                            modernHud.syncCheckboxes(cbFps, cbGpu, cbCpuRam, cbBattTemp, cbGraph, cbRenderer);
-                            if (cbRam != null) cbRam.setChecked(true);
-                            bindModernHudCheckboxes(cbFps, cbGpu, cbCpuRam, cbRam, cbBattTemp, cbRenderer);
+            spHudStyle.post(() ->
+                spHudStyle.setOnItemSelectedListener(
+                    new AdapterView.OnItemSelectedListener() {
+                        @Override
+                        public void onItemSelected(
+                            AdapterView<?> p,
+                            View v,
+                            int pos,
+                            long id
+                        ) {
+                            if (
+                                swHudMaster == null || !swHudMaster.isChecked()
+                            ) return;
+                            int newStyle = pos == 1 ? 2 : 1;
+                            if (classicHud != null) classicHud.disableByUser(
+                                false
+                            );
+                            if (modernHud != null) modernHud.disableByUser(
+                                false
+                            );
+                            enableHudLazily(newStyle);
+                            if (
+                                llModernOptions != null
+                            ) llModernOptions.setVisibility(
+                                newStyle == 2 ? View.VISIBLE : View.GONE
+                            );
+                            if (newStyle == 2 && modernHud != null) {
+                                modernHud.syncCheckboxes(
+                                    cbFps,
+                                    cbGpu,
+                                    cbCpuRam,
+                                    cbBattTemp,
+                                    cbGraph,
+                                    cbRenderer
+                                );
+                                if (cbRam != null) cbRam.setChecked(true);
+                                bindModernHudCheckboxes(
+                                    cbFps,
+                                    cbGpu,
+                                    cbCpuRam,
+                                    cbRam,
+                                    cbBattTemp,
+                                    cbRenderer
+                                );
+                            }
+                            saveHudModeToContainer(newStyle);
                         }
-                        saveHudModeToContainer(newStyle);
+
+                        @Override
+                        public void onNothingSelected(AdapterView<?> p) {}
                     }
-                    @Override public void onNothingSelected(AdapterView<?> p) {}
-                }
-            ));
+                )
+            );
         }
     }
 
@@ -1641,7 +2147,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (rootView == null || xServerView == null) return;
         final VulkanRenderer renderer = xServerView.getRenderer();
 
-        boolean rendererAlreadyActive = (activeRendererWindowId != -1);
+        boolean rendererAlreadyActive = activeRendererWindowId != -1;
 
         if (style == 2) {
             if (modernHud == null) {
@@ -1650,9 +2156,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 rootView.addView(modernHud);
                 if (renderer != null) renderer.setFrameRating(modernHud);
                 if (rendererAlreadyActive) {
-
                     frameRatingWindowId = activeRendererWindowId;
-                    if (renderer != null) renderer.setFpsWindowId(frameRatingWindowId);
+                    if (renderer != null) renderer.setFpsWindowId(
+                        frameRatingWindowId
+                    );
 
                     final String name = lastRendererName;
                     modernHud.onRendererDetected(name);
@@ -1667,7 +2174,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
                 if (renderer != null) renderer.setFrameRating(classicHud);
                 if (rendererAlreadyActive) {
                     frameRatingWindowId = activeRendererWindowId;
-                    if (renderer != null) renderer.setFpsWindowId(frameRatingWindowId);
+                    if (renderer != null) renderer.setFpsWindowId(
+                        frameRatingWindowId
+                    );
                     runOnUiThread(() -> classicHud.update());
                 }
             }
@@ -1675,15 +2184,33 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
     }
 
-    private void bindModernHudCheckboxes(CheckBox cbFps, CheckBox cbGpu, CheckBox cbCpuRam,
-            CheckBox cbRam, CheckBox cbBattTemp, CheckBox cbRenderer) {
+    private void bindModernHudCheckboxes(
+        CheckBox cbFps,
+        CheckBox cbGpu,
+        CheckBox cbCpuRam,
+        CheckBox cbRam,
+        CheckBox cbBattTemp,
+        CheckBox cbRenderer
+    ) {
         if (modernHud == null) return;
-        if (cbFps      != null) cbFps.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(0, v));
-        if (cbGpu      != null) cbGpu.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(2, v));
-        if (cbCpuRam   != null) cbCpuRam.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(3, v));
-        if (cbRam      != null) cbRam.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(7, v));
-        if (cbBattTemp != null) cbBattTemp.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(4, v));
-        if (cbRenderer != null) cbRenderer.setOnCheckedChangeListener((b, v) -> modernHud.toggleElement(6, v));
+        if (cbFps != null) cbFps.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(0, v)
+        );
+        if (cbGpu != null) cbGpu.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(2, v)
+        );
+        if (cbCpuRam != null) cbCpuRam.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(3, v)
+        );
+        if (cbRam != null) cbRam.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(7, v)
+        );
+        if (cbBattTemp != null) cbBattTemp.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(4, v)
+        );
+        if (cbRenderer != null) cbRenderer.setOnCheckedChangeListener((b, v) ->
+            modernHud.toggleElement(6, v)
+        );
     }
 
     private int resolveSelectedStyle(Spinner spHudStyle) {
@@ -1702,188 +2229,327 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (xServerView == null) return;
         final VulkanRenderer renderer = xServerView.getRenderer();
 
-        Spinner spNativeFPS        = findViewById(R.id.SPNativeFPS);
-        View    llStandardOptions  = findViewById(R.id.LLStandardOptions);
-        Switch  swEnableFSR        = findViewById(R.id.SWEnableFSR);
-        Spinner spUpscalerMode     = findViewById(R.id.SPUpscalerMode);
-        View    lblSharpnessHeader = findViewById(R.id.LBLSharpnessHeader);
-        SeekBar sbSharpness        = findViewById(R.id.SBSharpness);
-        Spinner spPostFXMode       = findViewById(R.id.SPPostFXMode);
-        Spinner spColorMode        = findViewById(R.id.SPColorMode);
-        View    btSaveGraphicsPreset = findViewById(R.id.BTSaveGraphicsPreset);
-        View    llFrameGenOptions  = findViewById(R.id.LLFrameGenOptions);
-        Spinner spFrameGenFPS      = findViewById(R.id.SPFrameGenFPS);
+        Spinner spNativeFPS = findViewById(R.id.SPNativeFPS);
+        View llStandardOptions = findViewById(R.id.LLStandardOptions);
+        Switch swEnableFSR = findViewById(R.id.SWEnableFSR);
+        Spinner spUpscalerMode = findViewById(R.id.SPUpscalerMode);
+        View lblSharpnessHeader = findViewById(R.id.LBLSharpnessHeader);
+        SeekBar sbSharpness = findViewById(R.id.SBSharpness);
+        Spinner spPostFXMode = findViewById(R.id.SPPostFXMode);
+        Spinner spColorMode = findViewById(R.id.SPColorMode);
+        View btSaveGraphicsPreset = findViewById(R.id.BTSaveGraphicsPreset);
+        View llFrameGenOptions = findViewById(R.id.LLFrameGenOptions);
+        Spinner spFrameGenFPS = findViewById(R.id.SPFrameGenFPS);
 
-        if (llFrameGenOptions != null) llFrameGenOptions.setVisibility(View.GONE);
-        if (spFrameGenFPS  != null) spFrameGenFPS.setVisibility(View.GONE);
-        if (spColorMode    != null) spColorMode.setVisibility(View.GONE);
+        if (llFrameGenOptions != null) llFrameGenOptions.setVisibility(
+            View.GONE
+        );
+        if (spFrameGenFPS != null) spFrameGenFPS.setVisibility(View.GONE);
+        if (spColorMode != null) spColorMode.setVisibility(View.GONE);
 
-        final int[]    fpsValues = {0, 30, 60, 90, 120};
-        final String[] fpsLabels = {"Off", "30 FPS", "60 FPS", "90 FPS", "120 FPS"};
+        final int[] fpsValues = { 0, 30, 60, 90, 120 };
+        final String[] fpsLabels = {
+            "Off",
+            "30 FPS",
+            "60 FPS",
+            "90 FPS",
+            "120 FPS",
+        };
 
         if (spNativeFPS != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(fpsLabels);
-            a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            a.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spNativeFPS.setAdapter(a);
-            String savedFps = container != null ? container.getExtra("graphicsFpsPreset") : "";
-            int savedFpsPos = savedFps.isEmpty() ? 0 : Integer.parseInt(savedFps);
-            if (savedFpsPos < 0 || savedFpsPos >= fpsLabels.length) savedFpsPos = 0;
+            String savedFps =
+                container != null
+                    ? container.getExtra("graphicsFpsPreset")
+                    : "";
+            int savedFpsPos = savedFps.isEmpty()
+                ? 0
+                : Integer.parseInt(savedFps);
+            if (
+                savedFpsPos < 0 || savedFpsPos >= fpsLabels.length
+            ) savedFpsPos = 0;
             spNativeFPS.setSelection(savedFpsPos);
-            renderer.setFpsLimit(savedFpsPos < fpsValues.length ? fpsValues[savedFpsPos] : 0);
-            spNativeFPS.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                    if (llStandardOptions != null) llStandardOptions.setVisibility(View.VISIBLE);
-                    if (llFrameGenOptions != null) llFrameGenOptions.setVisibility(View.GONE);
-                    renderer.setFpsLimit(pos < fpsValues.length ? fpsValues[pos] : 0);
+            renderer.setFpsLimit(
+                savedFpsPos < fpsValues.length ? fpsValues[savedFpsPos] : 0
+            );
+            spNativeFPS.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(
+                        AdapterView<?> p,
+                        View v,
+                        int pos,
+                        long id
+                    ) {
+                        if (
+                            llStandardOptions != null
+                        ) llStandardOptions.setVisibility(View.VISIBLE);
+                        if (
+                            llFrameGenOptions != null
+                        ) llFrameGenOptions.setVisibility(View.GONE);
+                        renderer.setFpsLimit(
+                            pos < fpsValues.length ? fpsValues[pos] : 0
+                        );
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> p) {}
                 }
-                @Override public void onNothingSelected(AdapterView<?> p) {}
-            });
+            );
         }
 
-        final String[] upscalerLabels = {"SGSR"};
+        final String[] upscalerLabels = { "SGSR" };
         if (spUpscalerMode != null) {
-            ArrayAdapter<String> a = createSidebarSpinnerAdapter(upscalerLabels);
-            a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            ArrayAdapter<String> a = createSidebarSpinnerAdapter(
+                upscalerLabels
+            );
+            a.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spUpscalerMode.setAdapter(a);
-            spUpscalerMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                    if (swEnableFSR != null && swEnableFSR.isChecked())
-                        renderer.setFilterMode(pos + 2);
+            spUpscalerMode.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(
+                        AdapterView<?> p,
+                        View v,
+                        int pos,
+                        long id
+                    ) {
+                        if (
+                            swEnableFSR != null && swEnableFSR.isChecked()
+                        ) renderer.setFilterMode(pos + 2);
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> p) {}
                 }
-                @Override public void onNothingSelected(AdapterView<?> p) {}
-            });
+            );
         }
 
-        String savedSharp = container != null ? container.getExtra("graphicsSharpness") : "";
-        float  initSharp  = savedSharp.isEmpty() ? 50f : Float.parseFloat(savedSharp);
+        String savedSharp =
+            container != null ? container.getExtra("graphicsSharpness") : "";
+        float initSharp = savedSharp.isEmpty()
+            ? 50f
+            : Float.parseFloat(savedSharp);
         if (sbSharpness != null) {
             sbSharpness.setValue(initSharp);
             renderer.setSharpness(initSharp / 100f);
-            sbSharpness.setOnValueChangeListener((sb, v) -> renderer.setSharpness(v / 100f));
+            sbSharpness.setOnValueChangeListener((sb, v) ->
+                renderer.setSharpness(v / 100f)
+            );
         }
 
         Runnable updateSharpnessVis = () -> {
-            boolean fsrOn = swEnableFSR  != null && swEnableFSR.isChecked();
-            boolean dlsOn = spPostFXMode != null && spPostFXMode.getSelectedItemPosition() == 1;
-            int vis = (fsrOn || dlsOn) ? View.VISIBLE : View.GONE;
-            if (lblSharpnessHeader != null) lblSharpnessHeader.setVisibility(vis);
-            if (sbSharpness        != null) sbSharpness.setVisibility(vis);
+            boolean fsrOn = swEnableFSR != null && swEnableFSR.isChecked();
+            boolean dlsOn =
+                spPostFXMode != null &&
+                spPostFXMode.getSelectedItemPosition() == 1;
+            int vis = fsrOn || dlsOn ? View.VISIBLE : View.GONE;
+            if (lblSharpnessHeader != null) lblSharpnessHeader.setVisibility(
+                vis
+            );
+            if (sbSharpness != null) sbSharpness.setVisibility(vis);
         };
 
-        String savedFilter = container != null ? container.getExtra("graphicsFilterMode") : "";
-        boolean fsrOn = !savedFilter.isEmpty() && Integer.parseInt(savedFilter) > 0;
+        String savedFilter =
+            container != null ? container.getExtra("graphicsFilterMode") : "";
+        boolean fsrOn =
+            !savedFilter.isEmpty() && Integer.parseInt(savedFilter) > 0;
         if (swEnableFSR != null) {
             swEnableFSR.setChecked(fsrOn);
-            if (spUpscalerMode != null)
-                spUpscalerMode.setVisibility(fsrOn ? View.VISIBLE : View.GONE);
-            if (fsrOn)
-                renderer.setFilterMode(spUpscalerMode != null
-                    ? spUpscalerMode.getSelectedItemPosition() + 2 : 2);
+            if (spUpscalerMode != null) spUpscalerMode.setVisibility(
+                fsrOn ? View.VISIBLE : View.GONE
+            );
+            if (fsrOn) renderer.setFilterMode(
+                spUpscalerMode != null
+                    ? spUpscalerMode.getSelectedItemPosition() + 2
+                    : 2
+            );
             swEnableFSR.setOnCheckedChangeListener((btn, checked) -> {
-                if (spUpscalerMode != null)
-                    spUpscalerMode.setVisibility(checked ? View.VISIBLE : View.GONE);
-                renderer.setFilterMode(checked
-                    ? (spUpscalerMode != null ? spUpscalerMode.getSelectedItemPosition() + 2 : 2)
-                    : (container != null ? container.getRendererFilterMode() : 0));
+                if (spUpscalerMode != null) spUpscalerMode.setVisibility(
+                    checked ? View.VISIBLE : View.GONE
+                );
+                renderer.setFilterMode(
+                    checked
+                        ? spUpscalerMode != null
+                            ? spUpscalerMode.getSelectedItemPosition() + 2
+                            : 2
+                        : container != null
+                          ? container.getRendererFilterMode()
+                          : 0
+                );
                 updateSharpnessVis.run();
             });
         }
 
-        final String[] pfxLabels = {"None", "DLS", "CRT", "HDR", "Natural"};
+        final String[] pfxLabels = { "None", "DLS", "CRT", "HDR", "Natural" };
         if (spPostFXMode != null) {
             ArrayAdapter<String> a = createSidebarSpinnerAdapter(pfxLabels);
-            a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            a.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spPostFXMode.setAdapter(a);
 
-            String savedPFX = container != null ? container.getExtra("graphicsPostFXMode") : "";
+            String savedPFX =
+                container != null
+                    ? container.getExtra("graphicsPostFXMode")
+                    : "";
             int initPFX = savedPFX.isEmpty() ? 0 : Integer.parseInt(savedPFX);
             if (initPFX < 0 || initPFX >= pfxLabels.length) initPFX = 0;
 
             spPostFXMode.setSelection(initPFX, false);
             if (initPFX > 0) renderer.setPostFXMode(initPFX);
 
-            spPostFXMode.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                @Override public void onItemSelected(AdapterView<?> p, View v, int pos, long id) {
-                    renderer.setPostFXMode(pos);
-                    updateSharpnessVis.run();
+            spPostFXMode.setOnItemSelectedListener(
+                new AdapterView.OnItemSelectedListener() {
+                    @Override
+                    public void onItemSelected(
+                        AdapterView<?> p,
+                        View v,
+                        int pos,
+                        long id
+                    ) {
+                        renderer.setPostFXMode(pos);
+                        updateSharpnessVis.run();
+                    }
+
+                    @Override
+                    public void onNothingSelected(AdapterView<?> p) {}
                 }
-                @Override public void onNothingSelected(AdapterView<?> p) {}
-            });
+            );
         }
 
-        String savedPFXInit = container != null ? container.getExtra("graphicsPostFXMode") : "";
-        boolean dlsRestored = !savedPFXInit.isEmpty() && Integer.parseInt(savedPFXInit) == 1;
-        int sharpVis = (fsrOn || dlsRestored) ? View.VISIBLE : View.GONE;
-        if (lblSharpnessHeader != null) lblSharpnessHeader.setVisibility(sharpVis);
-        if (sbSharpness        != null) sbSharpness.setVisibility(sharpVis);
+        String savedPFXInit =
+            container != null ? container.getExtra("graphicsPostFXMode") : "";
+        boolean dlsRestored =
+            !savedPFXInit.isEmpty() && Integer.parseInt(savedPFXInit) == 1;
+        int sharpVis = fsrOn || dlsRestored ? View.VISIBLE : View.GONE;
+        if (lblSharpnessHeader != null) lblSharpnessHeader.setVisibility(
+            sharpVis
+        );
+        if (sbSharpness != null) sbSharpness.setVisibility(sharpVis);
 
         if (btSaveGraphicsPreset != null) {
             btSaveGraphicsPreset.setOnClickListener(v -> {
                 if (container == null) return;
-                container.putExtra("graphicsFpsPreset",
-                    String.valueOf(spNativeFPS != null ? spNativeFPS.getSelectedItemPosition() : 0));
-                container.putExtra("graphicsFilterMode",
-                    String.valueOf(swEnableFSR != null && swEnableFSR.isChecked()
-                        ? (spUpscalerMode != null ? spUpscalerMode.getSelectedItemPosition() + 2 : 2) : 0));
-                container.putExtra("graphicsSharpness",
-                    String.valueOf(sbSharpness != null ? sbSharpness.getValue() : 50f));
-                container.putExtra("graphicsPostFXMode",
-                    String.valueOf(spPostFXMode != null ? spPostFXMode.getSelectedItemPosition() : 0));
+                container.putExtra(
+                    "graphicsFpsPreset",
+                    String.valueOf(
+                        spNativeFPS != null
+                            ? spNativeFPS.getSelectedItemPosition()
+                            : 0
+                    )
+                );
+                container.putExtra(
+                    "graphicsFilterMode",
+                    String.valueOf(
+                        swEnableFSR != null && swEnableFSR.isChecked()
+                            ? spUpscalerMode != null
+                                ? spUpscalerMode.getSelectedItemPosition() + 2
+                                : 2
+                            : 0
+                    )
+                );
+                container.putExtra(
+                    "graphicsSharpness",
+                    String.valueOf(
+                        sbSharpness != null ? sbSharpness.getValue() : 50f
+                    )
+                );
+                container.putExtra(
+                    "graphicsPostFXMode",
+                    String.valueOf(
+                        spPostFXMode != null
+                            ? spPostFXMode.getSelectedItemPosition()
+                            : 0
+                    )
+                );
                 container.putExtra("graphicsColorMode", "0");
                 container.saveData();
                 Toast.makeText(this, "Preset saved", Toast.LENGTH_SHORT).show();
             });
         }
 
-        final String[] frameGenLabels = {"2x Interpolation", "Always On"};
+        final String[] frameGenLabels = { "2x Interpolation", "Always On" };
         if (spFrameGenFPS != null) {
-            ArrayAdapter<String> a = createSidebarSpinnerAdapter(frameGenLabels);
-            a.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            ArrayAdapter<String> a = createSidebarSpinnerAdapter(
+                frameGenLabels
+            );
+            a.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spFrameGenFPS.setAdapter(a);
         }
     }
 
-        private void setupSidebarInputControls() {
+    private void setupSidebarInputControls() {
         if (inputControlsView == null || inputControlsManager == null) return;
 
-        Spinner spInputControlsProfile = findViewById(R.id.SPInputControlsProfile);
-        Switch swShowTouchscreenControls = findViewById(R.id.SWShowTouchscreenControls);
+        Spinner spInputControlsProfile = findViewById(
+            R.id.SPInputControlsProfile
+        );
+        Switch swShowTouchscreenControls = findViewById(
+            R.id.SWShowTouchscreenControls
+        );
         Switch swEnableTimeout = findViewById(R.id.SWEnableTouchscreenTimeout);
         Switch swEnableHaptics = findViewById(R.id.SWEnableTouchscreenHaptics);
-        View btInputControlsSettings = findViewById(R.id.BTInputControlsSettings);
+        View btInputControlsSettings = findViewById(
+            R.id.BTInputControlsSettings
+        );
         SeekBar sbControlsOpacity = findViewById(R.id.SBControlsOpacity);
 
-        if (spInputControlsProfile == null)
-            return;
+        if (spInputControlsProfile == null) return;
 
         Runnable loadProfileSpinner = () -> {
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+            ArrayList<ControlsProfile> profiles =
+                inputControlsManager.getProfiles(true);
             ArrayList<String> profileItems = new ArrayList<>();
             int selectedPosition = 0;
             profileItems.add("-- " + getString(R.string.disabled) + " --");
             for (int i = 0; i < profiles.size(); i++) {
                 ControlsProfile profile = profiles.get(i);
-                if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)
-                    selectedPosition = i + 1;
+                if (
+                    inputControlsView.getProfile() != null &&
+                    profile.id == inputControlsView.getProfile().id
+                ) selectedPosition = i + 1;
                 profileItems.add(profile.getName());
             }
 
-            ArrayAdapter<String> adapter = createSidebarSpinnerAdapter(profileItems.toArray(new String[0]));
-            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            ArrayAdapter<String> adapter = createSidebarSpinnerAdapter(
+                profileItems.toArray(new String[0])
+            );
+            adapter.setDropDownViewResource(
+                android.R.layout.simple_spinner_dropdown_item
+            );
             spInputControlsProfile.setAdapter(adapter);
             spInputControlsProfile.setSelection(selectedPosition, false);
         };
         loadProfileSpinner.run();
 
-        if (swShowTouchscreenControls != null)
-            swShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
-        if (swEnableTimeout != null)
-            swEnableTimeout.setChecked(preferences.getBoolean("touchscreen_timeout_enabled", false));
-        if (swEnableHaptics != null)
-            swEnableHaptics.setChecked(preferences.getBoolean("touchscreen_haptics_enabled", false));
+        if (
+            swShowTouchscreenControls != null
+        ) swShowTouchscreenControls.setChecked(
+            inputControlsView.isShowTouchscreenControls()
+        );
+        if (swEnableTimeout != null) swEnableTimeout.setChecked(
+            preferences.getBoolean("touchscreen_timeout_enabled", false)
+        );
+        if (swEnableHaptics != null) swEnableHaptics.setChecked(
+            preferences.getBoolean("touchscreen_haptics_enabled", false)
+        );
 
         if (sbControlsOpacity != null) {
-            sbControlsOpacity.setValue(preferences.getFloat("overlay_opacity", InputControlsView.DEFAULT_OVERLAY_OPACITY) * 100f);
+            sbControlsOpacity.setValue(
+                preferences.getFloat(
+                    "overlay_opacity",
+                    InputControlsView.DEFAULT_OVERLAY_OPACITY
+                ) * 100f
+            );
             sbControlsOpacity.setOnValueChangeListener((sb, v) -> {
                 float opacity = v / 100f;
                 preferences.edit().putFloat("overlay_opacity", opacity).apply();
@@ -1896,57 +2562,90 @@ public class XServerDisplayActivity extends AppCompatActivity {
             if (swShowTouchscreenControls != null) {
                 boolean showControls = swShowTouchscreenControls.isChecked();
                 inputControlsView.setShowTouchscreenControls(showControls);
-                preferences.edit().putBoolean("show_touchscreen_controls_enabled", showControls).apply();
+                preferences
+                    .edit()
+                    .putBoolean(
+                        "show_touchscreen_controls_enabled",
+                        showControls
+                    )
+                    .apply();
             }
 
-            boolean isTimeoutEnabled = swEnableTimeout != null && swEnableTimeout.isChecked();
-            boolean isHapticsEnabled = swEnableHaptics != null && swEnableHaptics.isChecked();
+            boolean isTimeoutEnabled =
+                swEnableTimeout != null && swEnableTimeout.isChecked();
+            boolean isHapticsEnabled =
+                swEnableHaptics != null && swEnableHaptics.isChecked();
             SharedPreferences.Editor editor = preferences.edit();
             editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
             editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
-            editor.putInt("selected_profile_index", spInputControlsProfile.getSelectedItemPosition() - 1);
+            editor.putInt(
+                "selected_profile_index",
+                spInputControlsProfile.getSelectedItemPosition() - 1
+            );
             editor.apply();
 
             int position = spInputControlsProfile.getSelectedItemPosition();
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles();
+            ArrayList<ControlsProfile> profiles =
+                inputControlsManager.getProfiles();
             if (position > 0 && position - 1 < profiles.size()) {
                 showInputControls(profiles.get(position - 1));
             } else {
                 hideInputControls();
             }
 
-            if (isTimeoutEnabled && inputControlsView.getVisibility() == View.VISIBLE) {
+            if (
+                isTimeoutEnabled &&
+                inputControlsView.getVisibility() == View.VISIBLE
+            ) {
                 startTouchscreenTimeout();
             } else if (touchpadView != null) {
                 touchpadView.setOnTouchListener(null);
             }
         };
 
-        spInputControlsProfile.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                applySidebarInputControls.run();
-            }
+        spInputControlsProfile.setOnItemSelectedListener(
+            new AdapterView.OnItemSelectedListener() {
+                @Override
+                public void onItemSelected(
+                    AdapterView<?> parent,
+                    View view,
+                    int position,
+                    long id
+                ) {
+                    applySidebarInputControls.run();
+                }
 
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
+                @Override
+                public void onNothingSelected(AdapterView<?> parent) {}
             }
-        });
+        );
 
-        if (swShowTouchscreenControls != null)
-            swShowTouchscreenControls.setOnCheckedChangeListener((buttonView, isChecked) -> applySidebarInputControls.run());
-        if (swEnableTimeout != null)
-            swEnableTimeout.setOnCheckedChangeListener((buttonView, isChecked) -> applySidebarInputControls.run());
-        if (swEnableHaptics != null)
-            swEnableHaptics.setOnCheckedChangeListener((buttonView, isChecked) -> applySidebarInputControls.run());
+        if (
+            swShowTouchscreenControls != null
+        ) swShowTouchscreenControls.setOnCheckedChangeListener(
+            (buttonView, isChecked) -> applySidebarInputControls.run()
+        );
+        if (swEnableTimeout != null) swEnableTimeout.setOnCheckedChangeListener(
+            (buttonView, isChecked) -> applySidebarInputControls.run()
+        );
+        if (swEnableHaptics != null) swEnableHaptics.setOnCheckedChangeListener(
+            (buttonView, isChecked) -> applySidebarInputControls.run()
+        );
 
         if (btInputControlsSettings != null) {
             btInputControlsSettings.setOnClickListener(v -> {
                 int position = spInputControlsProfile.getSelectedItemPosition();
                 Intent intent = new Intent(this, MainActivity.class);
                 intent.putExtra("edit_input_controls", true);
-                intent.putExtra("selected_profile_id",
-                        position > 0 ? inputControlsManager.getProfiles().get(position - 1).id : 0);
+                intent.putExtra(
+                    "selected_profile_id",
+                    position > 0
+                        ? inputControlsManager
+                              .getProfiles()
+                              .get(position - 1)
+                              .id
+                        : 0
+                );
                 editInputControlsCallback = () -> {
                     hideInputControls();
                     inputControlsManager.loadProfiles(true);
@@ -1959,61 +2658,104 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void showInputControlsDialog() {
-        final ContentDialog dialog = new ContentDialog(this, R.layout.input_controls_dialog);
+        final ContentDialog dialog = new ContentDialog(
+            this,
+            R.layout.input_controls_dialog
+        );
         dialog.setTitle(R.string.input_controls);
         dialog.setIcon(R.drawable.icon_input_controls);
 
         final Spinner sProfile = dialog.findViewById(R.id.SProfile);
 
-        dialog.getWindow().setBackgroundDrawableResource(
-                isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+        dialog
+            .getWindow()
+            .setBackgroundDrawableResource(
+                isDarkMode
+                    ? R.drawable.content_dialog_background_dark
+                    : R.drawable.content_dialog_background
+            );
         sProfile.setPopupBackgroundResource(
-                isDarkMode ? R.drawable.content_dialog_background_dark : R.drawable.content_dialog_background);
+            isDarkMode
+                ? R.drawable.content_dialog_background_dark
+                : R.drawable.content_dialog_background
+        );
 
-        int textColor = ContextCompat.getColor(this, isDarkMode ? R.color.white : R.color.black);
-        ViewGroup dialogViewGroup = (ViewGroup) dialog.getWindow().getDecorView().findViewById(android.R.id.content);
+        int textColor = ContextCompat.getColor(
+            this,
+            isDarkMode ? R.color.white : R.color.black
+        );
+        ViewGroup dialogViewGroup = (ViewGroup) dialog
+            .getWindow()
+            .getDecorView()
+            .findViewById(android.R.id.content);
         setTextColorForDialog(dialogViewGroup, textColor);
 
         Runnable loadProfileSpinner = () -> {
-            ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles(true);
+            ArrayList<ControlsProfile> profiles =
+                inputControlsManager.getProfiles(true);
             ArrayList<String> profileItems = new ArrayList<>();
             int selectedPosition = 0;
             profileItems.add("-- " + getString(R.string.disabled) + " --");
             for (int i = 0; i < profiles.size(); i++) {
                 ControlsProfile profile = profiles.get(i);
-                if (inputControlsView.getProfile() != null && profile.id == inputControlsView.getProfile().id)
-                    selectedPosition = i + 1;
+                if (
+                    inputControlsView.getProfile() != null &&
+                    profile.id == inputControlsView.getProfile().id
+                ) selectedPosition = i + 1;
                 profileItems.add(profile.getName());
             }
 
-            sProfile.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, profileItems));
+            sProfile.setAdapter(
+                new ArrayAdapter<>(
+                    this,
+                    android.R.layout.simple_spinner_dropdown_item,
+                    profileItems
+                )
+            );
             sProfile.setSelection(selectedPosition);
         };
         loadProfileSpinner.run();
 
-        final CheckBox cbShowTouchscreenControls = dialog.findViewById(R.id.CBShowTouchscreenControls);
-        cbShowTouchscreenControls.setChecked(inputControlsView.isShowTouchscreenControls());
+        final CheckBox cbShowTouchscreenControls = dialog.findViewById(
+            R.id.CBShowTouchscreenControls
+        );
+        cbShowTouchscreenControls.setChecked(
+            inputControlsView.isShowTouchscreenControls()
+        );
 
-        final CheckBox cbEnableTimeout = dialog.findViewById(R.id.CBEnableTimeout);
-        cbEnableTimeout.setChecked(preferences.getBoolean("touchscreen_timeout_enabled", false));
+        final CheckBox cbEnableTimeout = dialog.findViewById(
+            R.id.CBEnableTimeout
+        );
+        cbEnableTimeout.setChecked(
+            preferences.getBoolean("touchscreen_timeout_enabled", false)
+        );
 
-        final CheckBox cbEnableHaptics = dialog.findViewById(R.id.CBEnableHaptics);
-        cbEnableHaptics.setChecked(preferences.getBoolean("touchscreen_haptics_enabled", false));
+        final CheckBox cbEnableHaptics = dialog.findViewById(
+            R.id.CBEnableHaptics
+        );
+        cbEnableHaptics.setChecked(
+            preferences.getBoolean("touchscreen_haptics_enabled", false)
+        );
 
         final Runnable updateProfile = () -> {
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles().get(position - 1));
-            } else
-                hideInputControls();
+                showInputControls(
+                    inputControlsManager.getProfiles().get(position - 1)
+                );
+            } else hideInputControls();
         };
 
-        dialog.findViewById(R.id.BTSettings).setOnClickListener((v) -> {
+        dialog.findViewById(R.id.BTSettings).setOnClickListener(v -> {
             int position = sProfile.getSelectedItemPosition();
             Intent intent = new Intent(this, MainActivity.class);
             intent.putExtra("edit_input_controls", true);
-            intent.putExtra("selected_profile_id",
-                    position > 0 ? inputControlsManager.getProfiles().get(position - 1).id : 0);
+            intent.putExtra(
+                "selected_profile_id",
+                position > 0
+                    ? inputControlsManager.getProfiles().get(position - 1).id
+                    : 0
+            );
             editInputControlsCallback = () -> {
                 hideInputControls();
                 inputControlsManager.loadProfiles(true);
@@ -2024,7 +2766,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         });
 
         dialog.setOnConfirmCallback(() -> {
-            inputControlsView.setShowTouchscreenControls(cbShowTouchscreenControls.isChecked());
+            inputControlsView.setShowTouchscreenControls(
+                cbShowTouchscreenControls.isChecked()
+            );
             boolean isTimeoutEnabled = cbEnableTimeout.isChecked();
             boolean isHapticsEnabled = cbEnableHaptics.isChecked();
             SharedPreferences.Editor editor = preferences.edit();
@@ -2039,9 +2783,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
             int position = sProfile.getSelectedItemPosition();
             if (position > 0) {
-                showInputControls(inputControlsManager.getProfiles().get(position - 1));
-            } else
-                hideInputControls();
+                showInputControls(
+                    inputControlsManager.getProfiles().get(position - 1)
+                );
+            } else hideInputControls();
             updateProfile.run();
         });
 
@@ -2052,23 +2797,37 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private void simulateConfirmInputControlsDialog() {
-
-        boolean isShowTouchscreenControls = preferences.getBoolean("show_touchscreen_controls_enabled", true);
+        boolean isShowTouchscreenControls = preferences.getBoolean(
+            "show_touchscreen_controls_enabled",
+            true
+        );
 
         inputControlsView.setShowTouchscreenControls(isShowTouchscreenControls);
 
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
-        boolean isHapticsEnabled = preferences.getBoolean("touchscreen_haptics_enabled", false);
+        boolean isTimeoutEnabled = preferences.getBoolean(
+            "touchscreen_timeout_enabled",
+            false
+        );
+        boolean isHapticsEnabled = preferences.getBoolean(
+            "touchscreen_haptics_enabled",
+            false
+        );
 
         SharedPreferences.Editor editor = preferences.edit();
         editor.putBoolean("touchscreen_timeout_enabled", isTimeoutEnabled);
         editor.putBoolean("touchscreen_haptics_enabled", isHapticsEnabled);
         editor.apply();
 
-        int selectedProfileIndex = preferences.getInt("selected_profile_index", -1);
+        int selectedProfileIndex = preferences.getInt(
+            "selected_profile_index",
+            -1
+        );
 
-        ArrayList<ControlsProfile> profiles = inputControlsManager.getProfiles();
-        if (selectedProfileIndex < 0 || selectedProfileIndex >= profiles.size()) {
+        ArrayList<ControlsProfile> profiles =
+            inputControlsManager.getProfiles();
+        if (
+            selectedProfileIndex < 0 || selectedProfileIndex >= profiles.size()
+        ) {
             for (int i = 0; i < profiles.size(); i++) {
                 if (profiles.get(i).getName().equals("Default Controls")) {
                     selectedProfileIndex = i;
@@ -2077,22 +2836,28 @@ public class XServerDisplayActivity extends AppCompatActivity {
             }
         }
 
-        if (selectedProfileIndex >= 0 && selectedProfileIndex < profiles.size()) {
-
+        if (
+            selectedProfileIndex >= 0 && selectedProfileIndex < profiles.size()
+        ) {
             ControlsProfile profile = profiles.get(selectedProfileIndex);
             showInputControls(profile);
         } else {
-
             hideInputControls();
         }
 
-        if (isTimeoutEnabled && inputControlsView.getVisibility() == View.VISIBLE) {
+        if (
+            isTimeoutEnabled &&
+            inputControlsView.getVisibility() == View.VISIBLE
+        ) {
             startTouchscreenTimeout();
         } else {
             touchpadView.setOnTouchListener(null);
         }
 
-        Log.d("XServerDisplayActivity", "Input controls simulated confirmation executed.");
+        Log.d(
+            "XServerDisplayActivity",
+            "Input controls simulated confirmation executed."
+        );
     }
 
     private void startTouchscreenTimeout() {
@@ -2101,28 +2866,49 @@ public class XServerDisplayActivity extends AppCompatActivity {
         }
 
         if (DISABLE_TOUCHSCREEN_AUTO_HIDE) {
-            Log.d("XServerDisplayActivity", "Touchscreen auto-hide disabled; controls remain visible.");
+            Log.d(
+                "XServerDisplayActivity",
+                "Touchscreen auto-hide disabled; controls remain visible."
+            );
             if (touchpadView != null) {
                 touchpadView.setOnTouchListener(null);
             }
-            if (inputControlsView != null && inputControlsView.getProfile() != null) {
+            if (
+                inputControlsView != null &&
+                inputControlsView.getProfile() != null
+            ) {
                 inputControlsView.setVisibility(View.VISIBLE);
             }
             return;
         }
 
-        boolean isTimeoutEnabled = preferences.getBoolean("touchscreen_timeout_enabled", false);
+        boolean isTimeoutEnabled = preferences.getBoolean(
+            "touchscreen_timeout_enabled",
+            false
+        );
 
         if (isTimeoutEnabled) {
-            if (inputControlsView != null && inputControlsView.getProfile() != null) {
+            if (
+                inputControlsView != null &&
+                inputControlsView.getProfile() != null
+            ) {
                 inputControlsView.setVisibility(View.VISIBLE);
             }
-            Log.d("XServerDisplayActivity", "Timeout is enabled, setting up timeout logic.");
+            Log.d(
+                "XServerDisplayActivity",
+                "Timeout is enabled, setting up timeout logic."
+            );
 
             touchpadView.setOnTouchListener((v, event) -> {
                 int action = event.getActionMasked();
-                if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-                    if (inputControlsView != null && inputControlsView.getProfile() != null) {
+                if (
+                    action == MotionEvent.ACTION_DOWN ||
+                    action == MotionEvent.ACTION_MOVE
+                ) {
+                    if (
+                        inputControlsView != null &&
+                        inputControlsView.getProfile() != null
+                    ) {
                         inputControlsView.setVisibility(View.VISIBLE);
                     }
 
@@ -2135,9 +2921,15 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
             timeoutHandler.postDelayed(hideControlsRunnable, 5000);
         } else {
-            Log.d("XServerDisplayActivity", "Timeout is disabled, controls will stay visible.");
+            Log.d(
+                "XServerDisplayActivity",
+                "Timeout is disabled, controls will stay visible."
+            );
 
-            if (inputControlsView != null && inputControlsView.getProfile() != null) {
+            if (
+                inputControlsView != null &&
+                inputControlsView.getProfile() != null
+            ) {
                 inputControlsView.setVisibility(View.VISIBLE);
             }
             timeoutHandler.removeCallbacks(hideControlsRunnable);
@@ -2154,7 +2946,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
         inputControlsView.setVisibility(View.VISIBLE);
         inputControlsView.requestFocus();
 
-        touchpadView.setSensitivity(profile.getCursorSpeed() * globalCursorSpeed);
+        touchpadView.setSensitivity(
+            profile.getCursorSpeed() * globalCursorSpeed
+        );
         touchpadView.setPointerButtonRightEnabled(false);
 
         inputControlsView.invalidate();
@@ -2181,7 +2975,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void extractGraphicsDriverFiles() {
         String adrenoToolsDriverId = graphicsDriverConfig.get("version");
 
-        Log.d("GraphicsDriverExtraction", "Adrenotools DriverID: " + adrenoToolsDriverId);
+        Log.d(
+            "GraphicsDriverExtraction",
+            "Adrenotools DriverID: " + adrenoToolsDriverId
+        );
 
         File rootDir = imageFs.getRootDir();
 
@@ -2189,7 +2986,10 @@ public class XServerDisplayActivity extends AppCompatActivity {
             DXVKConfigDialog.setEnvVars(this, dxwrapperConfig, envVars);
             String version = dxwrapperConfig.get("version");
             if (version.equals("1.11.1-sarek")) {
-                Log.d("GraphicsDriverExtraction", "Disabling Wrapper PATCH_OPCONSTCOMP SPIR-V pass");
+                Log.d(
+                    "GraphicsDriverExtraction",
+                    "Disabling Wrapper PATCH_OPCONSTCOMP SPIR-V pass"
+                );
                 envVars.put("WRAPPER_NO_PATCH_OPCONSTCOMP", "1");
             }
         } else {
@@ -2201,44 +3001,82 @@ public class XServerDisplayActivity extends AppCompatActivity {
             envVars.put("MESA_VK_WSI_DEBUG", "sw");
         }
 
-        envVars.put("VK_ICD_FILENAMES", imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json");
+        envVars.put(
+            "VK_ICD_FILENAMES",
+            imageFs.getShareDir() + "/vulkan/icd.d/wrapper_icd.aarch64.json"
+        );
         envVars.put("GALLIUM_DRIVER", "zink");
 
         if (firstTimeBoot) {
-            Log.d("XServerDisplayActivity", "First time container boot, re-extracting libs");
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/wrapper" + ".tzst",
-                    rootDir);
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "layers" + ".tzst", rootDir);
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "graphics_driver/extra_libs" + ".tzst",
-                    rootDir);
+            Log.d(
+                "XServerDisplayActivity",
+                "First time container boot, re-extracting libs"
+            );
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                "graphics_driver/wrapper" + ".tzst",
+                rootDir
+            );
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                "layers" + ".tzst",
+                rootDir
+            );
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                "graphics_driver/extra_libs" + ".tzst",
+                rootDir
+            );
         }
 
         if (!"System".equals(adrenoToolsDriverId)) {
-            AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(this);
-            adrenotoolsManager.setDriverById(envVars, imageFs, adrenoToolsDriverId);
+            AdrenotoolsManager adrenotoolsManager = new AdrenotoolsManager(
+                this
+            );
+            adrenotoolsManager.setDriverById(
+                envVars,
+                imageFs,
+                adrenoToolsDriverId
+            );
         }
 
         String vulkanVersion = graphicsDriverConfig.get("vulkanVersion");
         String vulkanVersionPatch = "0";
-        String[] vulkanVersionParts = GPUInformation.getVulkanVersion(adrenoToolsDriverId, this).split("\\.");
-        if (vulkanVersionParts.length > 2) vulkanVersionPatch = vulkanVersionParts[2];
+        String[] vulkanVersionParts = GPUInformation.getVulkanVersion(
+            adrenoToolsDriverId,
+            this
+        ).split("\\.");
+        if (vulkanVersionParts.length > 2) vulkanVersionPatch =
+            vulkanVersionParts[2];
         vulkanVersion = vulkanVersion + "." + vulkanVersionPatch;
         envVars.put("WRAPPER_VK_VERSION", vulkanVersion);
 
-        String blacklistedExtensions = graphicsDriverConfig.get("blacklistedExtensions");
+        String blacklistedExtensions = graphicsDriverConfig.get(
+            "blacklistedExtensions"
+        );
         envVars.put("WRAPPER_EXTENSION_BLACKLIST", blacklistedExtensions);
 
         String gpuName = graphicsDriverConfig.get("gpuName");
         String dxvkVersion = dxwrapperConfig.get("version");
         if (!gpuName.equals("Device") && !dxvkVersion.equals("1.11.1-sarek")) {
             envVars.put("WRAPPER_DEVICE_NAME", gpuName);
-            envVars.put("WRAPPER_DEVICE_ID", WineD3DConfigDialog.getDeviceIdFromGPUName(this, gpuName));
-            envVars.put("WRAPPER_VENDOR_ID", WineD3DConfigDialog.getVendorIdFromGPUName(this, gpuName));
+            envVars.put(
+                "WRAPPER_DEVICE_ID",
+                WineD3DConfigDialog.getDeviceIdFromGPUName(this, gpuName)
+            );
+            envVars.put(
+                "WRAPPER_VENDOR_ID",
+                WineD3DConfigDialog.getVendorIdFromGPUName(this, gpuName)
+            );
         }
 
         String maxDeviceMemory = graphicsDriverConfig.get("maxDeviceMemory");
-        if (maxDeviceMemory != null && Integer.parseInt(maxDeviceMemory) > 0)
-            envVars.put("WRAPPER_VMEM_MAX_SIZE", maxDeviceMemory);
+        if (
+            maxDeviceMemory != null && Integer.parseInt(maxDeviceMemory) > 0
+        ) envVars.put("WRAPPER_VMEM_MAX_SIZE", maxDeviceMemory);
 
         String presentMode = graphicsDriverConfig.get("presentMode");
         if (presentMode.contains("immediate")) {
@@ -2250,10 +3088,14 @@ public class XServerDisplayActivity extends AppCompatActivity {
         envVars.put("WRAPPER_RESOURCE_TYPE", resourceType);
 
         String syncFrame = graphicsDriverConfig.get("syncFrame");
-        if (syncFrame.equals("1"))
-            envVars.put("MESA_VK_WSI_DEBUG", "forcesync");
+        if (syncFrame.equals("1")) envVars.put(
+            "MESA_VK_WSI_DEBUG",
+            "forcesync"
+        );
 
-        String disablePresentWait = graphicsDriverConfig.get("disablePresentWait");
+        String disablePresentWait = graphicsDriverConfig.get(
+            "disablePresentWait"
+        );
         envVars.put("WRAPPER_DISABLE_PRESENT_WAIT", disablePresentWait);
 
         String bcnEmulation = graphicsDriverConfig.get("bcnEmulation");
@@ -2261,14 +3103,20 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
         switch (bcnEmulation) {
             case "auto" -> {
-                if (bcnEmulationType.equals("compute") && GPUInformation.getVendorID(null, null) != 0x5143) {
+                if (
+                    bcnEmulationType.equals("compute") &&
+                    GPUInformation.getVendorID(null, null) != 0x5143
+                ) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "1");
                 }
                 envVars.put("WRAPPER_EMULATE_BCN", "3");
             }
             case "full" -> {
-                if (bcnEmulationType.equals("compute") && GPUInformation.getVendorID(null, null) != 0x5143) {
+                if (
+                    bcnEmulationType.equals("compute") &&
+                    GPUInformation.getVendorID(null, null) != 0x5143
+                ) {
                     envVars.put("ENABLE_BCN_COMPUTE", "1");
                     envVars.put("BCN_COMPUTE_AUTO", "0");
                 }
@@ -2278,7 +3126,9 @@ public class XServerDisplayActivity extends AppCompatActivity {
             default -> envVars.put("WRAPPER_EMULATE_BCN", "1");
         }
 
-        String bcnEmulationCache = graphicsDriverConfig.get("bcnEmulationCache");
+        String bcnEmulationCache = graphicsDriverConfig.get(
+            "bcnEmulationCache"
+        );
         envVars.put("WRAPPER_USE_BCN_CACHE", bcnEmulationCache);
 
         if (!vkbasaltConfig.isEmpty()) {
@@ -2295,20 +3145,17 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (winHandler != null) {
             handledByWinHandler = winHandler.onGenericMotionEvent(event);
             if (handledByWinHandler) {
-
             }
         }
 
         if (touchpadView != null) {
             handledByTouchpadView = touchpadView.onExternalMouseEvent(event);
             if (handledByTouchpadView) {
-
             }
         }
 
         boolean handledBySuper = super.dispatchGenericMotionEvent(event);
         if (!handledBySuper) {
-
         }
 
         return handledByWinHandler || handledByTouchpadView || handledBySuper;
@@ -2318,20 +3165,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-
         if (event.getAction() == KeyEvent.ACTION_DOWN) {
-            if (event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE || event.getKeyCode() == KeyEvent.KEYCODE_HOME
-                    || event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT) {
-                boolean handled = inputControlsView.onKeyEvent(event)
-                        || (winHandler != null && winHandler.onKeyEvent(event))
-                                && (xServer != null && xServer.keyboard.onKeyEvent(event));
+            if (
+                event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_MODE ||
+                event.getKeyCode() == KeyEvent.KEYCODE_HOME ||
+                event.getKeyCode() == KeyEvent.KEYCODE_BUTTON_SELECT
+            ) {
+                boolean handled =
+                    inputControlsView.onKeyEvent(event) ||
+                    (winHandler != null &&
+                        winHandler.onKeyEvent(event) &&
+                        xServer != null &&
+                        xServer.keyboard.onKeyEvent(event));
                 return true;
             }
         }
 
-        return (!inputControlsView.onKeyEvent(event) && !winHandler.onKeyEvent(event)
-                && xServer.keyboard.onKeyEvent(event)) ||
-                (!ExternalController.isGameController(event.getDevice()) && super.dispatchKeyEvent(event));
+        return (
+            (!inputControlsView.onKeyEvent(event) &&
+                !winHandler.onKeyEvent(event) &&
+                xServer.keyboard.onKeyEvent(event)) ||
+            (!ExternalController.isGameController(event.getDevice()) &&
+                super.dispatchKeyEvent(event))
+        );
     }
 
     public InputControlsView getInputControlsView() {
@@ -2341,11 +3197,25 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private static final String TAG = "DXWrapperExtraction";
 
     private void extractDXWrapperFiles(String dxwrapper) {
-        final String[] dlls = { "d3d10.dll", "d3d10_1.dll", "d3d10core.dll", "d3d11.dll", "d3d12.dll", "d3d12core.dll",
-                "d3d8.dll", "d3d9.dll", "dxgi.dll", "ddraw.dll", "d3dimm.dll" };
+        final String[] dlls = {
+            "d3d10.dll",
+            "d3d10_1.dll",
+            "d3d10core.dll",
+            "d3d11.dll",
+            "d3d12.dll",
+            "d3d12core.dll",
+            "d3d8.dll",
+            "d3d9.dll",
+            "dxgi.dll",
+            "ddraw.dll",
+            "d3dimm.dll",
+        };
 
         File rootDir = imageFs.getRootDir();
-        File windowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
+        File windowsDir = new File(
+            rootDir,
+            ImageFs.WINEPREFIX + "/drive_c/windows"
+        );
 
         if (dxwrapper.contains("dxvk")) {
             Log.d(TAG, "Extracting DXVK wrapper files, version: " + dxwrapper);
@@ -2354,54 +3224,117 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String vkd3dWrapper = dxwrapper.split(";")[1];
             String ddrawrapper = dxwrapper.split(";")[2];
 
-            ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(dxvkWrapper);
+            ContentProfile dxvkProfile = contentsManager.getProfileByEntryName(
+                dxvkWrapper
+            );
             if (dxvkProfile != null) {
-                Log.d(TAG, "Applying user-defined DXVK content profile: " + dxvkWrapper);
+                Log.d(
+                    TAG,
+                    "Applying user-defined DXVK content profile: " + dxvkWrapper
+                );
                 contentsManager.applyContent(dxvkProfile);
             } else {
-                Log.d(TAG, "Extracting fallback DXVK .tzst archive: " + dxvkWrapper);
-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "dxwrapper/" + dxvkWrapper + ".tzst",
-                        windowsDir, onExtractFileListener);
+                Log.d(
+                    TAG,
+                    "Extracting fallback DXVK .tzst archive: " + dxvkWrapper
+                );
+                TarCompressorUtils.extract(
+                    TarCompressorUtils.Type.ZSTD,
+                    this,
+                    "dxwrapper/" + dxvkWrapper + ".tzst",
+                    windowsDir,
+                    onExtractFileListener
+                );
 
                 if (compareVersion(dxvkWrapper, "2.4") < 0) {
-                    Log.d(TAG, "Extracting d8vk as part of DXVK version " + dxvkWrapper);
-                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
-                            "dxwrapper/d8vk-" + DefaultVersion.D8VK + ".tzst", windowsDir, onExtractFileListener);
+                    Log.d(
+                        TAG,
+                        "Extracting d8vk as part of DXVK version " + dxvkWrapper
+                    );
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "dxwrapper/d8vk-" + DefaultVersion.D8VK + ".tzst",
+                        windowsDir,
+                        onExtractFileListener
+                    );
                 }
             }
 
             if (vkd3dWrapper.contains("None")) {
-                Log.d(TAG, "No VKD3D has been selected, restoring original d3d12");
-                restoreOriginalDllFiles(new String[] { "d3d12.dll", "d3d12core.dll" });
+                Log.d(
+                    TAG,
+                    "No VKD3D has been selected, restoring original d3d12"
+                );
+                restoreOriginalDllFiles(new String[] {
+                    "d3d12.dll",
+                    "d3d12core.dll",
+                });
             } else {
-                ContentProfile vkd3dProfile = contentsManager.getProfileByEntryName(vkd3dWrapper);
+                ContentProfile vkd3dProfile =
+                    contentsManager.getProfileByEntryName(vkd3dWrapper);
                 if (vkd3dProfile != null) {
-                    Log.d(TAG, "Applying user-defined VKD3D content profile: " + vkd3dWrapper);
+                    Log.d(
+                        TAG,
+                        "Applying user-defined VKD3D content profile: " +
+                            vkd3dWrapper
+                    );
                     contentsManager.applyContent(vkd3dProfile);
                 } else {
-                    Log.d(TAG, "Extracting fallback VKD3D .tzst archive: " + vkd3dWrapper);
-                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
-                            "dxwrapper/" + vkd3dWrapper + ".tzst", windowsDir, onExtractFileListener);
+                    Log.d(
+                        TAG,
+                        "Extracting fallback VKD3D .tzst archive: " +
+                            vkd3dWrapper
+                    );
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "dxwrapper/" + vkd3dWrapper + ".tzst",
+                        windowsDir,
+                        onExtractFileListener
+                    );
                 }
             }
 
             Log.d(TAG, "Extracting nglide wrapper");
-            TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ddrawrapper/nglide.tzst", windowsDir,
-                    onExtractFileListener);
+            TarCompressorUtils.extract(
+                TarCompressorUtils.Type.ZSTD,
+                this,
+                "ddrawrapper/nglide.tzst",
+                windowsDir,
+                onExtractFileListener
+            );
 
             if (ddrawrapper.contains("None")) {
-                Log.d(TAG, "No DDRaw wrapper has been selected, restoring original ddraw files");
-                restoreOriginalDllFiles(new String[] { "ddraw.dll", "d3dimm.dll" });
+                Log.d(
+                    TAG,
+                    "No DDRaw wrapper has been selected, restoring original ddraw files"
+                );
+                restoreOriginalDllFiles(new String[] {
+                    "ddraw.dll",
+                    "d3dimm.dll",
+                });
             } else {
-                if (ddrawrapper.equals("cnc-ddraw"))
-                    envVars.put("CNC_DDRAW_CONFIG_FILE", "C:\\windows\\syswow64\\ddraw.ini");
+                if (ddrawrapper.equals("cnc-ddraw")) envVars.put(
+                    "CNC_DDRAW_CONFIG_FILE",
+                    "C:\\windows\\syswow64\\ddraw.ini"
+                );
 
                 Log.d(TAG, "Extracting ddrawrapper " + ddrawrapper);
-                TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "ddrawrapper/" + ddrawrapper + ".tzst",
-                        windowsDir, onExtractFileListener);
+                TarCompressorUtils.extract(
+                    TarCompressorUtils.Type.ZSTD,
+                    this,
+                    "ddrawrapper/" + ddrawrapper + ".tzst",
+                    windowsDir,
+                    onExtractFileListener
+                );
             }
 
-            Log.d(TAG, "Finished extraction of DXVK wrapper files, version: " + dxwrapper);
+            Log.d(
+                TAG,
+                "Finished extraction of DXVK wrapper files, version: " +
+                    dxwrapper
+            );
         } else if (dxwrapper.contains("wined3d")) {
             Log.d(TAG, "Restoring original DLL files for wined3d.");
             restoreOriginalDllFiles(dlls);
@@ -2412,22 +3345,23 @@ public class XServerDisplayActivity extends AppCompatActivity {
         int[] a = parseSemverLoose(varA);
         int[] b = parseSemverLoose(varB);
 
-        if (a[0] != b[0])
-            return a[0] - b[0];
-        if (a[1] != b[1])
-            return a[1] - b[1];
+        if (a[0] != b[0]) return a[0] - b[0];
+        if (a[1] != b[1]) return a[1] - b[1];
         return a[2] - b[2];
     }
 
-    private static final Pattern SEMVER_LOOSE = Pattern.compile("(\\d+)\\.(\\d+)(?:\\.(\\d+))?");
+    private static final Pattern SEMVER_LOOSE = Pattern.compile(
+        "(\\d+)\\.(\\d+)(?:\\.(\\d+))?"
+    );
 
     private static int[] parseSemverLoose(String s) {
-        if (s == null)
-            return new int[] { 0, 0, 0 };
+        if (s == null) return new int[] { 0, 0, 0 };
 
         Matcher m = SEMVER_LOOSE.matcher(s);
 
-        String g1 = null, g2 = null, g3 = null;
+        String g1 = null,
+            g2 = null,
+            g3 = null;
         while (m.find()) {
             g1 = m.group(1);
             g2 = m.group(2);
@@ -2445,8 +3379,7 @@ public class XServerDisplayActivity extends AppCompatActivity {
     }
 
     private static int safeParseInt(String s) {
-        if (s == null || s.isEmpty())
-            return 0;
+        if (s == null || s.isEmpty()) return 0;
         try {
             return Integer.parseInt(s);
         } catch (NumberFormatException ignored) {
@@ -2457,59 +3390,108 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void extractWinComponentFiles() {
         Log.d("XServerDisplayActivity", "Extracting WinComponents");
         File rootDir = imageFs.getRootDir();
-        File windowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
-        File systemRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/system.reg");
+        File windowsDir = new File(
+            rootDir,
+            ImageFs.WINEPREFIX + "/drive_c/windows"
+        );
+        File systemRegFile = new File(
+            rootDir,
+            ImageFs.WINEPREFIX + "/system.reg"
+        );
 
         try {
             JSONObject wincomponentsJSONObject = new JSONObject(
-                    FileUtils.readString(this, "wincomponents/wincomponents.json"));
+                FileUtils.readString(this, "wincomponents/wincomponents.json")
+            );
             ArrayList<String> dlls = new ArrayList<>();
-            String wincomponents = shortcut != null ? shortcut.getExtra("wincomponents", container.getWinComponents())
+            String wincomponents =
+                shortcut != null
+                    ? shortcut.getExtra(
+                          "wincomponents",
+                          container.getWinComponents()
+                      )
                     : container.getWinComponents();
 
             Iterator<String[]> oldWinComponentsIter = new KeyValueSet(
-                    container.getExtra("wincomponents", Container.FALLBACK_WINCOMPONENTS)).iterator();
+                container.getExtra(
+                    "wincomponents",
+                    Container.FALLBACK_WINCOMPONENTS
+                )
+            ).iterator();
 
             for (String[] wincomponent : new KeyValueSet(wincomponents)) {
-                if (wincomponent[1].equals(oldWinComponentsIter.next()[1]) && !firstTimeBoot)
-                    continue;
+                if (
+                    wincomponent[1].equals(oldWinComponentsIter.next()[1]) &&
+                    !firstTimeBoot
+                ) continue;
                 String identifier = wincomponent[0];
                 boolean useNative = wincomponent[1].equals("1");
 
                 if (useNative) {
-                    TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this,
-                            "wincomponents/" + identifier + ".tzst", windowsDir, onExtractFileListener);
+                    TarCompressorUtils.extract(
+                        TarCompressorUtils.Type.ZSTD,
+                        this,
+                        "wincomponents/" + identifier + ".tzst",
+                        windowsDir,
+                        onExtractFileListener
+                    );
                 } else {
-                    JSONArray dlnames = wincomponentsJSONObject.getJSONArray(identifier);
+                    JSONArray dlnames = wincomponentsJSONObject.getJSONArray(
+                        identifier
+                    );
                     for (int i = 0; i < dlnames.length(); i++) {
                         String dlname = dlnames.getString(i);
-                        dlls.add(!dlname.endsWith(".exe") ? dlname + ".dll" : dlname);
+                        dlls.add(
+                            !dlname.endsWith(".exe") ? dlname + ".dll" : dlname
+                        );
                     }
                 }
-                Log.d("XServerDisplayActivity",
-                        "Setting wincomponent " + identifier + " to " + String.valueOf(useNative));
-                WineUtils.overrideWinComponentDlls(this, container, identifier, useNative);
-                WineUtils.setWinComponentRegistryKeys(systemRegFile, identifier, useNative, this);
+                Log.d(
+                    "XServerDisplayActivity",
+                    "Setting wincomponent " +
+                        identifier +
+                        " to " +
+                        String.valueOf(useNative)
+                );
+                WineUtils.overrideWinComponentDlls(
+                    this,
+                    container,
+                    identifier,
+                    useNative
+                );
+                WineUtils.setWinComponentRegistryKeys(
+                    systemRegFile,
+                    identifier,
+                    useNative,
+                    this
+                );
             }
 
-            if (!dlls.isEmpty())
-                restoreOriginalDllFiles(dlls.toArray(new String[0]));
-        } catch (JSONException e) {
-        }
+            if (!dlls.isEmpty()) restoreOriginalDllFiles(
+                dlls.toArray(new String[0])
+            );
+        } catch (JSONException e) {}
     }
 
     private void restoreOriginalDllFiles(final String... dlls) {
         File rootDir = imageFs.getRootDir();
-        File windowsDir = new File(rootDir, ImageFs.WINEPREFIX + "/drive_c/windows");
+        File windowsDir = new File(
+            rootDir,
+            ImageFs.WINEPREFIX + "/drive_c/windows"
+        );
         File system32dlls = null;
         File syswow64dlls = null;
 
-        if (wineInfo.isArm64EC())
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/aarch64-windows");
-        else
-            system32dlls = new File(imageFs.getWinePath() + "/lib/wine/x86_64-windows");
+        if (wineInfo.isArm64EC()) system32dlls = new File(
+            imageFs.getWinePath() + "/lib/wine/aarch64-windows"
+        );
+        else system32dlls = new File(
+            imageFs.getWinePath() + "/lib/wine/x86_64-windows"
+        );
 
-        syswow64dlls = new File(imageFs.getWinePath() + "/lib/wine/i386-windows");
+        syswow64dlls = new File(
+            imageFs.getWinePath() + "/lib/wine/i386-windows"
+        );
 
         for (String dll : dlls) {
             File srcFile = new File(system32dlls, dll);
@@ -2523,27 +3505,29 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private String getWineStartCommand() {
         EnvVars envVars = getOverrideEnvVars();
-
         String cmdArgs = "";
         String execPath = null;
-        String execArgs = "";
-
+        String execArgs = " -fullscreen";
+        String[] extraExecArgs = getExtraExecArgs();
+        for (String arg : extraExecArgs) execArgs += " " + arg;
         if (shortcut != null) {
-            execArgs = shortcut.getExtra("execArgs");
-            execArgs = !execArgs.isEmpty() ? " "+execArgs : "";
-
-            if (shortcut.path.endsWith(".lnk") || shortcut.path.contains("://")) {
-                cmdArgs = "\""+shortcut.path+"\""+execArgs;
-            }
-            else execPath = shortcut.path;
-        }
-        else {
+            String shortcutArgs = shortcut.getExtra("execArgs");
+            execArgs += !shortcutArgs.isEmpty() ? " " + shortcutArgs : "";
+            if (
+                shortcut.path.endsWith(".lnk") || shortcut.path.contains("://")
+            ) {
+                cmdArgs = "\"" + shortcut.path + "\"" + execArgs;
+            } else execPath = shortcut.path;
+        } else {
             Intent intent = getIntent();
             if (intent.hasExtra("exec_path")) {
-                execPath = WineUtils.unixToDOSPath(intent.getStringExtra("exec_path"), container);
+                execPath = WineUtils.unixToDOSPath(
+                    intent.getStringExtra("exec_path"),
+                    container
+                );
 
                 if (execPath.endsWith(".lnk")) {
-                    cmdArgs = "\""+execPath+"\"";
+                    cmdArgs = "\"" + execPath + "\"" + execArgs;
                     execPath = null;
                 }
             }
@@ -2554,20 +3538,44 @@ public class XServerDisplayActivity extends AppCompatActivity {
             String execDir = FileUtils.getDirname(fullPath);
             String filename = FileUtils.getName(fullPath);
             int dotIndex, spaceIndex;
-            if ((dotIndex = filename.lastIndexOf(".")) != -1 && (spaceIndex = filename.indexOf(" ", dotIndex)) != -1) {
-                execArgs = filename.substring(spaceIndex+1)+execArgs;
+            if (
+                (dotIndex = filename.lastIndexOf(".")) != -1 &&
+                (spaceIndex = filename.indexOf(" ", dotIndex)) != -1
+            ) {
+                execArgs = filename.substring(spaceIndex + 1) + execArgs;
                 filename = filename.substring(0, spaceIndex);
             }
-            cmdArgs = "/dir "+StringUtils.escapeDOSPath(execDir)+" \""+filename+"\""+execArgs;
+            cmdArgs =
+                "/dir " +
+                StringUtils.escapeDOSPath(execDir) +
+                " \"" +
+                filename +
+                "\"" +
+                execArgs;
         }
 
         if (cmdArgs.isEmpty()) cmdArgs = "/dir C:\\windows \"wfm.exe\"";
 
         if (envVars.has("EXTRA_EXEC_ARGS")) {
-            cmdArgs += " "+envVars.get("EXTRA_EXEC_ARGS");
+            cmdArgs += " " + envVars.get("EXTRA_EXEC_ARGS");
             envVars.remove("EXTRA_EXEC_ARGS");
         }
-        return "winhandler.exe "+cmdArgs;
+        return "winhandler.exe " + cmdArgs;
+    }
+
+    private String[] getExtraExecArgs() {
+        String json = getIntent().getStringExtra("extra_args");
+        if (json == null || json.isEmpty()) return new String[0];
+        try {
+            JSONArray array = new JSONArray(json);
+            String[] args = new String[array.length()];
+            for (int i = 0; i < array.length(); i++) args[i] = array.optString(
+                i
+            );
+            return args;
+        } catch (JSONException e) {
+            return new String[0];
+        }
     }
 
     private String getExecutable() {
@@ -2616,12 +3624,27 @@ public class XServerDisplayActivity extends AppCompatActivity {
     private void changeWineAudioDriver() {
         if (!audioDriver.equals(container.getExtra("audioDriver"))) {
             File rootDir = imageFs.getRootDir();
-            File userRegFile = new File(rootDir, ImageFs.WINEPREFIX + "/user.reg");
-            try (WineRegistryEditor registryEditor = new WineRegistryEditor(userRegFile)) {
+            File userRegFile = new File(
+                rootDir,
+                ImageFs.WINEPREFIX + "/user.reg"
+            );
+            try (
+                WineRegistryEditor registryEditor = new WineRegistryEditor(
+                    userRegFile
+                )
+            ) {
                 if (audioDriver.equals("alsa")) {
-                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "alsa");
+                    registryEditor.setStringValue(
+                        "Software\\Wine\\Drivers",
+                        "Audio",
+                        "alsa"
+                    );
                 } else if (audioDriver.equals("pulseaudio")) {
-                    registryEditor.setStringValue("Software\\Wine\\Drivers", "Audio", "pulse");
+                    registryEditor.setStringValue(
+                        "Software\\Wine\\Drivers",
+                        "Audio",
+                        "pulse"
+                    );
                 }
             }
             container.putExtra("audioDriver", audioDriver);
@@ -2631,43 +3654,61 @@ public class XServerDisplayActivity extends AppCompatActivity {
 
     private void applyGeneralPatches(Container container) {
         File rootDir = imageFs.getRootDir();
-        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "container_pattern_common.tzst", rootDir);
-        TarCompressorUtils.extract(TarCompressorUtils.Type.ZSTD, this, "pulseaudio.tzst",
-                new File(getFilesDir(), "pulseaudio"));
+        TarCompressorUtils.extract(
+            TarCompressorUtils.Type.ZSTD,
+            this,
+            "container_pattern_common.tzst",
+            rootDir
+        );
+        TarCompressorUtils.extract(
+            TarCompressorUtils.Type.ZSTD,
+            this,
+            "pulseaudio.tzst",
+            new File(getFilesDir(), "pulseaudio")
+        );
         WineUtils.applySystemTweaks(this, wineInfo);
         container.putExtra("graphicsDriver", null);
         container.putExtra("desktopTheme", null);
     }
 
     private void assignTaskAffinity(Window window) {
-        if (taskAffinityMask == 0 || taskAffinityMaskWoW64 == 0)
-            return;
+        if (taskAffinityMask == 0 || taskAffinityMaskWoW64 == 0) return;
         int processId = window.getProcessId();
         String className = window.getClassName();
-        int processAffinity = window.isWoW64() ? taskAffinityMaskWoW64 : taskAffinityMask;
+        int processAffinity = window.isWoW64()
+            ? taskAffinityMaskWoW64
+            : taskAffinityMask;
 
         if (processId > 0) {
             winHandler.setProcessAffinity(processId, processAffinity);
         } else if (!className.isEmpty()) {
-            winHandler.setProcessAffinity(window.getClassName(), processAffinity);
+            winHandler.setProcessAffinity(
+                window.getClassName(),
+                processAffinity
+            );
         }
     }
 
     private void changeFrameRatingVisibility(Window window, Property property) {
-
-        String propName = (property != null) ? property.nameAsString() : null;
+        String propName = property != null ? property.nameAsString() : null;
 
         if (property != null) {
-            if (activeRendererWindowId == -1 && propName.contains("_MESA_DRV")) {
+            if (
+                activeRendererWindowId == -1 && propName.contains("_MESA_DRV")
+            ) {
                 activeRendererWindowId = window.id;
             }
 
-            if (propName.contains("_MESA_DRV_ENGINE_NAME")
-                    && (activeRendererWindowId == -1 || window.id == activeRendererWindowId)) {
+            if (
+                propName.contains("_MESA_DRV_ENGINE_NAME") &&
+                (activeRendererWindowId == -1 ||
+                    window.id == activeRendererWindowId)
+            ) {
                 lastRendererName = property.toString();
             }
-        } else if (activeRendererWindowId != -1 && window.id == activeRendererWindowId) {
-
+        } else if (
+            activeRendererWindowId != -1 && window.id == activeRendererWindowId
+        ) {
             activeRendererWindowId = -1;
             lastRendererName = null;
         }
@@ -2677,36 +3718,65 @@ public class XServerDisplayActivity extends AppCompatActivity {
         if (property != null) {
             if (frameRatingWindowId == -1 && propName.contains("_MESA_DRV")) {
                 frameRatingWindowId = window.id;
-                if (xServerView != null) xServerView.getRenderer().setFpsWindowId(window.id);
-                Log.d("XServerDisplayActivity", "Showing hud for Window " + window.getName());
+                if (xServerView != null) xServerView
+                    .getRenderer()
+                    .setFpsWindowId(window.id);
+                Log.d(
+                    "XServerDisplayActivity",
+                    "Showing hud for Window " + window.getName()
+                );
                 if (classicHud != null) classicHud.update();
 
                 if (modernHud != null) {
                     final String nameToPass = lastRendererName;
-                    runOnUiThread(() -> modernHud.onRendererDetected(nameToPass));
+                    runOnUiThread(() ->
+                        modernHud.onRendererDetected(nameToPass)
+                    );
                 }
             }
 
-            if (propName.contains("_MESA_DRV_ENGINE_NAME") && window.id == frameRatingWindowId) {
+            if (
+                propName.contains("_MESA_DRV_ENGINE_NAME") &&
+                window.id == frameRatingWindowId
+            ) {
                 String rendererName = property.toString();
-                if (classicHud != null) runOnUiThread(() -> classicHud.setRenderer(rendererName));
-                if (modernHud != null) runOnUiThread(() -> modernHud.setRenderer(rendererName));
+                if (classicHud != null) runOnUiThread(() ->
+                    classicHud.setRenderer(rendererName)
+                );
+                if (modernHud != null) runOnUiThread(() ->
+                    modernHud.setRenderer(rendererName)
+                );
             }
-            if (propName.contains("_MESA_DRV_GPU_NAME") && window.id == frameRatingWindowId) {
+            if (
+                propName.contains("_MESA_DRV_GPU_NAME") &&
+                window.id == frameRatingWindowId
+            ) {
                 String gpuName = property.toString();
-                if (classicHud != null) runOnUiThread(() -> classicHud.setGpuName(gpuName));
-                if (modernHud != null) runOnUiThread(() -> modernHud.setGpuName(gpuName));
+                if (classicHud != null) runOnUiThread(() ->
+                    classicHud.setGpuName(gpuName)
+                );
+                if (modernHud != null) runOnUiThread(() ->
+                    modernHud.setGpuName(gpuName)
+                );
             }
-        } else if (frameRatingWindowId != -1 && window.id == frameRatingWindowId) {
-
+        } else if (
+            frameRatingWindowId != -1 && window.id == frameRatingWindowId
+        ) {
             frameRatingWindowId = -1;
-            if (xServerView != null) xServerView.getRenderer().setFpsWindowId(-1);
-            Log.d("XServerDisplayActivity", "Hiding hud for Window " + window.getName());
+            if (xServerView != null) xServerView
+                .getRenderer()
+                .setFpsWindowId(-1);
+            Log.d(
+                "XServerDisplayActivity",
+                "Hiding hud for Window " + window.getName()
+            );
             if (classicHud != null) runOnUiThread(() -> {
                 classicHud.setVisibility(View.GONE);
                 classicHud.reset();
             });
-            if (modernHud != null) runOnUiThread(() -> modernHud.onRendererGone());
+            if (modernHud != null) runOnUiThread(() ->
+                modernHud.onRendererGone()
+            );
         }
     }
 
@@ -2717,5 +3787,4 @@ public class XServerDisplayActivity extends AppCompatActivity {
     public void setScreenEffectProfile(String screenEffectProfile) {
         this.screenEffectProfile = screenEffectProfile;
     }
-
 }
