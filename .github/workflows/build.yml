@@ -1,6 +1,7 @@
 name: Android CI Bionic
 
 on:
+  # Permite ejecutar el workflow manualmente desde la pestaña Actions
   workflow_dispatch:
   push:
     branches: [ "main", "ludashi-3.1" ]
@@ -51,8 +52,14 @@ jobs:
     - name: Install Shader Compiler
       run: sudo apt-get update && sudo apt-get install -y glslang-tools
 
+    - name: Initialize Gradle if missing
+      run: |
+        if [ ! -f "build.gradle" ] && [ ! -f "build.gradle.kts" ]; then
+          gradle init --type basic --dsl groovy --incubating
+        fi
+
     - name: Build with Gradle
-      run: gradle assembleDebug -p app
+      run: gradle assembleDebug
 
     - name: Upload APK artifact
       uses: actions/upload-artifact@v4
